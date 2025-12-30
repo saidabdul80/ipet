@@ -15,6 +15,8 @@ class SaleItem extends Model
         'product_id',
         'product_variant_id',
         'quantity',
+        'unit_id',
+        'base_quantity',
         'unit_price',
         'discount_percentage',
         'discount_amount',
@@ -42,6 +44,11 @@ class SaleItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 }
 

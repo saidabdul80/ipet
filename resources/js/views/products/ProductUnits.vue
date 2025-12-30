@@ -291,7 +291,10 @@ const openCreateDialog = () => {
 
 const editUnit = (unit) => {
   editMode.value = true;
-  formData.value = { ...unit, unit_id: unit.unit.id };
+  formData.value = {
+    ...unit,
+    unit_id: unit.unit_id || unit.unit?.id || unit.id
+  };
   dialog.value = true;
 };
 

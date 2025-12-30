@@ -16,6 +16,8 @@ class PurchaseOrderItem extends Model
         'product_variant_id',
         'quantity',
         'received_quantity',
+        'unit_id',
+        'base_quantity',
         'unit_cost',
         'tax_rate',
         'discount_percentage',
@@ -45,6 +47,11 @@ class PurchaseOrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 }
 

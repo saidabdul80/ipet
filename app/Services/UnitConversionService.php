@@ -121,12 +121,20 @@ class UnitConversionService
 
         foreach ($productUnits as $pu) {
             $units[] = [
-                'id' => $pu->unit->id,
+                'id' => $pu->id,  // ProductUnit ID for editing
+                'unit_id' => $pu->unit->id,
+                'unit' => [
+                    'id' => $pu->unit->id,
+                    'name' => $pu->unit->name,
+                    'short_name' => $pu->unit->short_name,
+                ],
                 'name' => $pu->unit->name,
                 'short_name' => $pu->unit->short_name,
                 'conversion_factor' => $pu->conversion_factor,
                 'selling_price' => $pu->selling_price,
                 'cost_price' => $pu->cost_price,
+                'is_purchase_unit' => $pu->is_purchase_unit,
+                'is_sale_unit' => $pu->is_sale_unit,
                 'is_default' => $pu->is_default,
             ];
         }

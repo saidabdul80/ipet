@@ -28,7 +28,7 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = PurchaseOrder::with(['supplier', 'store', 'items.product']);
+        $query = PurchaseOrder::with(['supplier', 'store', 'items.product', 'items.unit']);
 
         // Filter by accessible stores for non-super admins
         if (!$request->user()->isSuperAdmin()) {
@@ -151,7 +151,7 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $purchaseOrder)
     {
-        $purchaseOrder->load(['supplier', 'store', 'items.product', 'items.variant', 'goodsReceivedNotes']);
+        $purchaseOrder->load(['supplier', 'store', 'items.product', 'items.variant', 'items.unit', 'goodsReceivedNotes']);
 
         return response()->json($purchaseOrder);
     }
