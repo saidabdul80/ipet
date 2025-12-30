@@ -1,0 +1,247 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Models\Store;
+use App\Models\Product;
+use App\Models\StockLedger;
+use App\Models\StockTransfer;
+use App\Models\StockAdjustment;
+use App\Models\AuditLog;
+use App\Services\StockService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class InventoryController extends Controller
+{
+    use AuthorizesRequests;
+    protected $stockService;
+
+    public function __construct(StockService $stockService)
+    {
+        $this->stockService = $stockService;
+    }
+
+    public function stockLevels(Request $request)
+    {
+        // Get the latest stock ledger entry for each product in each store
+        $subquery = StockLedger::select('store_id', 'product_id', 'product_variant_id', DB::raw('MAX(id) as max_id'))
+            ->groupBy('store_id', 'product_id', 'product_variant_id');
+
+        // Filter by accessible stores for non-super admins
+        if (!$request->user()->isSuperAdmin()) {
+            $accessibleStoreIds = $request->user()->getAccessibleStoreIds();
+            if (empty($accessibleStoreIds)) {
+                return response()->json([]);
+            }
+            $subquery->whereIn('store_id', $accessibleStoreIds);
+        }
+
+        if ($request->filled('store_id')) {
+            $subquery->where('store_id', $request->store_id);
+        }
+
+        if ($request->filled('branch_id')) {
+            $subquery->whereHas('store', function ($q) use ($request) {
+                $q->where('branch_id', $request->branch_id);
+            });
+        }
+
+        // Get the IDs of the latest entries
+        $latestIds = $subquery->pluck('max_id');
+
+        // Get the full stock ledger entries with product details
+        $query = StockLedger::with(['product', 'variant'])
+            ->whereIn('id', $latestIds);
+
+        $stockLevels = $query->get()->map(function ($ledger) {
+            $product = $ledger->product;
+            $variant = $ledger->variant;
+
+            return [
+                'id' => $ledger->id,
+                'product_id' => $ledger->product_id,
+                'product_name' => $variant ? "{$product->name} ({$variant->name})" : $product->name,
+                'sku' => $variant ? $variant->sku : $product->sku,
+                'current_quantity' => $ledger->balance_quantity,
+                'reorder_level' => $product->reorder_level ?? 0,
+                'reorder_quantity' => $product->reorder_quantity ?? 0,
+                'average_cost' => $ledger->balance_quantity > 0
+                    ? round($ledger->balance_value / $ledger->balance_quantity, 2)
+                    : 0,
+                'stock_value' => $ledger->balance_value,
+                'last_updated' => $ledger->created_at,
+            ];
+        });
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $search = strtolower($request->search);
+            $stockLevels = $stockLevels->filter(function ($item) use ($search) {
+                return str_contains(strtolower($item['product_name']), $search) ||
+                       str_contains(strtolower($item['sku']), $search);
+            });
+        }
+
+        // Apply category filter if provided
+        if ($request->filled('category_id')) {
+            $stockLevels = $stockLevels->filter(function ($item) use ($request) {
+                $product = \App\Models\Product::find($item['product_id']);
+                return $product && $product->category_id == $request->category_id;
+            });
+        }
+
+        return response()->json($stockLevels->values());
+    }
+
+    public function stockLedger(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+        ]);
+
+        $query = StockLedger::with(['store', 'product', 'variant', 'createdBy'])
+            ->where('store_id', $request->store_id);
+
+        if ($request->has('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        if ($request->has('transaction_type')) {
+            $query->where('transaction_type', $request->transaction_type);
+        }
+
+        $perPage = $request->get('per_page', 50);
+        $ledger = $query->latest()->paginate($perPage);
+
+        return response()->json($ledger);
+    }
+
+    public function lowStockAlert(Request $request)
+    {
+        $storeId = $request->get('store_id');
+        
+        if (!$storeId) {
+            return response()->json([
+                'message' => 'Store ID is required',
+            ], 400);
+        }
+
+        $store = Store::findOrFail($storeId);
+        $lowStockProducts = $this->stockService->getLowStockProducts($store);
+
+        return response()->json($lowStockProducts);
+    }
+
+    public function stockBalance(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'product_id' => 'required|exists:products,id',
+            'variant_id' => 'nullable|exists:product_variants,id',
+        ]);
+
+        $store = Store::findOrFail($request->store_id);
+        $product = Product::findOrFail($request->product_id);
+
+        $balance = $this->stockService->getStockBalance(
+            $store,
+            $product,
+            $request->variant_id
+        );
+
+        return response()->json($balance);
+    }
+
+    public function createTransfer(Request $request)
+    {
+        $this->authorize('create', StockTransfer::class);
+
+        $validated = $request->validate([
+            'from_store_id' => 'required|exists:stores,id',
+            'to_store_id' => 'required|exists:stores,id|different:from_store_id',
+            'transfer_date' => 'required|date',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit_cost' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $fromStore = Store::findOrFail($validated['from_store_id']);
+            $toStore = Store::findOrFail($validated['to_store_id']);
+
+            // Check stock availability
+            foreach ($validated['items'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+                
+                if (!$this->stockService->hasAvailableStock(
+                    $fromStore,
+                    $product,
+                    $item['quantity'],
+                    $item['product_variant_id'] ?? null
+                )) {
+                    throw new \Exception("Insufficient stock for product: {$product->name}");
+                }
+            }
+
+            // Create transfer record
+            $transfer = StockTransfer::create([
+                'from_store_id' => $validated['from_store_id'],
+                'to_store_id' => $validated['to_store_id'],
+                'transfer_date' => $validated['transfer_date'],
+                'status' => 'pending',
+                'notes' => $validated['notes'] ?? null,
+                'created_by' => auth()->id(),
+            ]);
+
+            // Create transfer items and stock ledger entries
+            foreach ($validated['items'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+
+                // Deduct from source store
+                $this->stockService->recordTransaction(
+                    $fromStore,
+                    $product,
+                    'transfer_out',
+                    $item['quantity'],
+                    $item['unit_cost'],
+                    $item['product_variant_id'] ?? null,
+                    'stock_transfer',
+                    $transfer->id,
+                    "Transfer to {$toStore->name}"
+                );
+            }
+
+            AuditLog::log('created', $transfer, null, $transfer->toArray(), 'Stock transfer created');
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Stock transfer created successfully',
+                'transfer' => $transfer->load(['fromStore', 'toStore']),
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to create stock transfer',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
+    }
+}
+
