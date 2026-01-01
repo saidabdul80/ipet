@@ -53,7 +53,7 @@ class InventoryController extends Controller
         $latestIds = $subquery->pluck('max_id');
 
         // Get the full stock ledger entries with product details
-        $query = StockLedger::with(['product', 'variant'])
+        $query = StockLedger::with(['product.unit', 'variant'])
             ->whereIn('id', $latestIds);
 
         $stockLevels = $query->get()->map(function ($ledger) {
@@ -66,6 +66,7 @@ class InventoryController extends Controller
                 'product_name' => $variant ? "{$product->name} ({$variant->name})" : $product->name,
                 'sku' => $variant ? $variant->sku : $product->sku,
                 'current_quantity' => $ledger->balance_quantity,
+                'unit' => $product->unit,
                 'reorder_level' => $product->reorder_level ?? 0,
                 'reorder_quantity' => $product->reorder_quantity ?? 0,
                 'average_cost' => $ledger->balance_quantity > 0
@@ -163,6 +164,53 @@ class InventoryController extends Controller
         return response()->json($balance);
     }
 
+    public function getTransfers(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'nullable|exists:stores,id',
+            'status' => 'nullable|in:pending,approved,completed,cancelled',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        $query = StockTransfer::with(['fromStore', 'toStore', 'initiatedBy']);
+
+        // Filter by store (either from or to)
+        if ($request->filled('store_id')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('from_store_id', $request->store_id)
+                  ->orWhere('to_store_id', $request->store_id);
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('transfer_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('transfer_date', '<=', $request->date_to);
+        }
+
+        // Access control
+        if (!$request->user()->isSuperAdmin()) {
+            if ($request->user()->store_id) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('from_store_id', $request->user()->store_id)
+                      ->orWhere('to_store_id', $request->user()->store_id);
+                });
+            }
+        }
+
+        $perPage = $request->get('per_page', 20);
+        $transfers = $query->latest('transfer_date')->paginate($perPage);
+
+        return response()->json($transfers);
+    }
+
     public function createTransfer(Request $request)
     {
         $this->authorize('create', StockTransfer::class);
@@ -170,14 +218,28 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'from_store_id' => 'required|exists:stores,id',
             'to_store_id' => 'required|exists:stores,id|different:from_store_id',
-            'transfer_date' => 'required|date',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'transfer_date' => 'nullable|date',
+            'product_id' => 'required_without:items|exists:products,id',
+            'product_variant_id' => 'nullable|exists:product_variants,id',
+            'quantity' => 'required_without:items|numeric|min:0.01',
+            'unit_cost' => 'nullable|numeric|min:0',
+            'items' => 'nullable|array',
+            'items.*.product_id' => 'required_with:items|exists:products,id',
             'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_cost' => 'required|numeric|min:0',
+            'items.*.quantity' => 'required_with:items|numeric|min:0.01',
+            'items.*.unit_cost' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
+
+        // Convert single item to items array format
+        if (!isset($validated['items']) && isset($validated['product_id'])) {
+            $validated['items'] = [[
+                'product_id' => $validated['product_id'],
+                'product_variant_id' => $validated['product_variant_id'] ?? null,
+                'quantity' => $validated['quantity'],
+                'unit_cost' => $validated['unit_cost'] ?? 0,
+            ]];
+        }
 
         DB::beginTransaction();
         try {
@@ -202,15 +264,19 @@ class InventoryController extends Controller
             $transfer = StockTransfer::create([
                 'from_store_id' => $validated['from_store_id'],
                 'to_store_id' => $validated['to_store_id'],
-                'transfer_date' => $validated['transfer_date'],
+                'transfer_date' => $validated['transfer_date'] ?? now(),
+                'transfer_number' => 'TR-' . now()->format('YmdHis') . '-' . rand(1000, 9999),
                 'status' => 'pending',
                 'notes' => $validated['notes'] ?? null,
-                'created_by' => auth()->id(),
+                'initiated_by' => $request->user()->id,
             ]);
 
             // Create transfer items and stock ledger entries
             foreach ($validated['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
+
+                // Use product cost price if unit_cost not provided
+                $unitCost = $item['unit_cost'] ?? $product->cost_price ?? 0;
 
                 // Deduct from source store
                 $this->stockService->recordTransaction(
@@ -218,7 +284,7 @@ class InventoryController extends Controller
                     $product,
                     'transfer_out',
                     $item['quantity'],
-                    $item['unit_cost'],
+                    $unitCost,
                     $item['product_variant_id'] ?? null,
                     'stock_transfer',
                     $transfer->id,

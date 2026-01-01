@@ -271,7 +271,6 @@ const allMenuItems = [
     title: 'Inventory',
     items: [
       { title: 'Products', icon: 'mdi-package-variant', to: '/products', permission: 'view_products' },
-      { title: 'Product Units', icon: 'mdi-package-variant-closed', to: '/product-units', permission: 'manage_products' },
       { title: 'Inventory', icon: 'mdi-warehouse', to: '/inventory', permission: 'view_inventory' },
       { title: 'Categories', icon: 'mdi-tag-multiple', to: '/categories', permission: 'view_product_categories' },
       { title: 'Units', icon: 'mdi-ruler', to: '/units', permission: 'view_units' },

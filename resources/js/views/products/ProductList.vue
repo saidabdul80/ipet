@@ -93,6 +93,16 @@
           <v-btn
             icon
             size="small"
+            @click="manageUnits(item)"
+            title="Manage Units"
+            color="info"
+            v-if="authStore.hasPermission('update_products')"
+          >
+            <v-icon>mdi-package-variant-closed</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            size="small"
             @click="editProduct(item)"
             title="Edit"
             v-if="authStore.hasPermission('update_products')"
@@ -248,6 +258,180 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Units Management Dialog -->
+    <v-dialog v-model="unitsDialog" max-width="900px" persistent>
+      <v-card v-if="selectedProduct">
+        <v-card-title class="bg-primary text-white">
+          Manage Units - {{ selectedProduct.name }}
+          <v-btn icon size="small" @click="unitsDialog = false" class="ml-auto">
+            <v-icon color="white">mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text class="mt-4">
+          <!-- Units Table -->
+          <v-data-table
+            :headers="unitHeaders"
+            :items="productUnits"
+            :loading="loadingUnits"
+            class="elevation-1 mb-4"
+          >
+            <template v-slot:top>
+              <v-toolbar flat>
+                <v-toolbar-title>Product Units</v-toolbar-title>
+                <v-spacer></v-spacer>
+                <v-btn color="primary" @click="openAddUnitDialog">
+                  <v-icon left>mdi-plus</v-icon>
+                  Add Unit
+                </v-btn>
+              </v-toolbar>
+            </template>
+
+            <template v-slot:item.unit="{ item }">
+              {{ item.unit?.name || item.name }} ({{ item.unit?.short_name || item.short_name }})
+            </template>
+
+            <template v-slot:item.conversion_factor="{ item }">
+              <v-chip color="info" size="small">
+                1 {{ item.unit?.short_name || item.short_name }} = {{ item.conversion_factor }} {{ selectedProduct.unit?.short_name }}
+              </v-chip>
+            </template>
+
+            <template v-slot:item.selling_price="{ item }">
+              ₦{{ formatNumber(item.selling_price || 0) }}
+            </template>
+
+            <template v-slot:item.cost_price="{ item }">
+              ₦{{ formatNumber(item.cost_price || 0) }}
+            </template>
+
+            <template v-slot:item.is_purchase_unit="{ item }">
+              <v-icon :color="item.is_purchase_unit ? 'success' : 'grey'">
+                {{ item.is_purchase_unit ? 'mdi-check-circle' : 'mdi-close-circle' }}
+              </v-icon>
+            </template>
+
+            <template v-slot:item.is_sale_unit="{ item }">
+              <v-icon :color="item.is_sale_unit ? 'success' : 'grey'">
+                {{ item.is_sale_unit ? 'mdi-check-circle' : 'mdi-close-circle' }}
+              </v-icon>
+            </template>
+
+            <template v-slot:item.is_default="{ item }">
+              <v-icon :color="item.is_default ? 'warning' : 'grey'">
+                {{ item.is_default ? 'mdi-star' : 'mdi-star-outline' }}
+              </v-icon>
+            </template>
+
+            <template v-slot:item.actions="{ item }">
+              <v-btn icon size="small" color="primary" @click="editUnit(item)" v-if="!item.is_default">
+                <v-icon>mdi-pencil</v-icon>
+              </v-btn>
+              <v-btn icon size="small" color="error" @click="deleteUnit(item)" v-if="!item.is_default">
+                <v-icon>mdi-delete</v-icon>
+              </v-btn>
+            </template>
+          </v-data-table>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Add/Edit Unit Dialog -->
+    <v-dialog v-model="unitFormDialog" max-width="600px" persistent>
+      <v-card>
+        <v-card-title>
+          {{ editingUnit ? 'Edit' : 'Add' }} Unit
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="unitForm">
+            <v-row>
+              <v-col cols="12">
+                <v-select
+                  v-model="unitFormData.unit_id"
+                  :items="availableUnits"
+                  item-title="name"
+                  item-value="id"
+                  label="Unit *"
+                  variant="outlined"
+                  :rules="[v => !!v || 'Required']"
+                >
+                  <template v-slot:item="{ props, item }">
+                    <v-list-item v-bind="props">
+                      <template v-slot:title>
+                        {{ item.raw.name }} ({{ item.raw.short_name }})
+                      </template>
+                    </v-list-item>
+                  </template>
+                </v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model.number="unitFormData.conversion_factor"
+                  label="Conversion Factor *"
+                  type="number"
+                  step="0.01"
+                  variant="outlined"
+                  :rules="[v => v > 0 || 'Must be > 0']"
+                  hint="How many base units in this unit"
+                  persistent-hint
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-alert type="info" density="compact" v-if="unitFormData.conversion_factor > 0 && selectedProduct">
+                  1 unit = {{ unitFormData.conversion_factor }} {{ selectedProduct.unit?.short_name }}
+                </v-alert>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model.number="unitFormData.selling_price"
+                  label="Selling Price"
+                  type="number"
+                  step="0.01"
+                  variant="outlined"
+                  prefix="₦"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model.number="unitFormData.cost_price"
+                  label="Cost Price"
+                  type="number"
+                  step="0.01"
+                  variant="outlined"
+                  prefix="₦"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-checkbox
+                  v-model="unitFormData.is_purchase_unit"
+                  label="Purchase Unit"
+                  density="compact"
+                ></v-checkbox>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-checkbox
+                  v-model="unitFormData.is_sale_unit"
+                  label="Sale Unit"
+                  density="compact"
+                ></v-checkbox>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-checkbox
+                  v-model="unitFormData.is_default"
+                  label="Default Unit"
+                  density="compact"
+                ></v-checkbox>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey" variant="text" @click="unitFormDialog = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" @click="saveUnit" :loading="savingUnit">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -397,6 +581,111 @@ const viewProduct = (product) => {
   console.log('View product:', product);
 };
 
+// Units Management
+const unitsDialog = ref(false);
+const unitFormDialog = ref(false);
+const selectedProduct = ref(null);
+const productUnits = ref([]);
+const availableUnits = ref([]);
+const loadingUnits = ref(false);
+const savingUnit = ref(false);
+const editingUnit = ref(false);
+
+const unitHeaders = [
+  { title: 'Unit', key: 'unit' },
+  { title: 'Conversion', key: 'conversion_factor' },
+  { title: 'Selling Price', key: 'selling_price' },
+  { title: 'Cost Price', key: 'cost_price' },
+  { title: 'Purchase', key: 'is_purchase_unit' },
+  { title: 'Sale', key: 'is_sale_unit' },
+  { title: 'Default', key: 'is_default' },
+  { title: 'Actions', key: 'actions', sortable: false },
+];
+
+const unitFormData = ref({
+  unit_id: null,
+  conversion_factor: 1,
+  selling_price: 0,
+  cost_price: 0,
+  is_purchase_unit: true,
+  is_sale_unit: true,
+  is_default: false,
+});
+
+const manageUnits = async (product) => {
+  selectedProduct.value = product;
+  unitsDialog.value = true;
+  await loadProductUnits();
+};
+
+const loadProductUnits = async () => {
+  if (!selectedProduct.value) return;
+
+  loadingUnits.value = true;
+  try {
+    const response = await axios.get(`/api/products/${selectedProduct.value.id}/units`);
+    productUnits.value = response.data || [];
+  } catch (error) {
+    handleError(error);
+  } finally {
+    loadingUnits.value = false;
+  }
+};
+
+const openAddUnitDialog = () => {
+  editingUnit.value = false;
+  unitFormData.value = {
+    unit_id: null,
+    conversion_factor: 1,
+    selling_price: 0,
+    cost_price: 0,
+    is_purchase_unit: true,
+    is_sale_unit: true,
+    is_default: false,
+  };
+  unitFormDialog.value = true;
+};
+
+const editUnit = (unit) => {
+  editingUnit.value = true;
+  unitFormData.value = {
+    ...unit,
+    unit_id: unit.unit_id || unit.unit?.id || unit.id
+  };
+  unitFormDialog.value = true;
+};
+
+const saveUnit = async () => {
+  savingUnit.value = true;
+  try {
+    if (editingUnit.value) {
+      await axios.put(`/api/products/${selectedProduct.value.id}/units/${unitFormData.value.id}`, unitFormData.value);
+      success('Unit updated successfully');
+    } else {
+      await axios.post(`/api/products/${selectedProduct.value.id}/units`, unitFormData.value);
+      success('Unit added successfully');
+    }
+    unitFormDialog.value = false;
+    await loadProductUnits();
+  } catch (error) {
+    handleError(error);
+  } finally {
+    savingUnit.value = false;
+  }
+};
+
+const deleteUnit = async (unit) => {
+  if (confirm(`Delete unit ${unit.unit?.name || unit.name}?`)) {
+    try {
+      await axios.delete(`/api/products/${selectedProduct.value.id}/units/${unit.id}`);
+      success('Unit deleted successfully');
+      await loadProductUnits();
+    } catch (error) {
+      handleError(error);
+    }
+  }
+};
+
 onMounted(async () => {
   // Load categories and units
   const categoriesRes = await axios.get('/api/categories');
@@ -404,6 +693,7 @@ onMounted(async () => {
 
   const unitsRes = await axios.get('/api/units');
   units.value = unitsRes.data.data || unitsRes.data;
+  availableUnits.value = units.value;
 
   loadProducts();
 });

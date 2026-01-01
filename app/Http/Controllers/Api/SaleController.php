@@ -29,7 +29,7 @@ class SaleController extends Controller
 
     public function index(Request $request)
     {
-        $query = Sale::with(['customer', 'store', 'cashier', 'items.product', 'payments']);
+        $query = Sale::with(['customer', 'store', 'cashier', 'items.product', 'items.unit', 'payments']);
 
         // Filter by accessible stores for non-super admins
         if (!$request->user()->isSuperAdmin()) {
@@ -279,7 +279,7 @@ class SaleController extends Controller
 
             return response()->json([
                 'message' => 'Sale created successfully',
-                'sale' => $sale->load(['customer', 'store', 'items.product', 'payments']),
+                'sale' => $sale->load(['customer', 'store', 'cashier', 'items.product', 'items.unit', 'payments']),
             ], 201);
 
         } catch (\Exception $e) {
@@ -293,7 +293,7 @@ class SaleController extends Controller
 
     public function show(Sale $sale)
     {
-        $sale->load(['customer', 'store', 'cashier', 'items.product', 'items.variant', 'payments']);
+        $sale->load(['customer', 'store', 'cashier', 'items.product', 'items.variant', 'items.unit', 'payments']);
 
         return response()->json($sale);
     }

@@ -96,13 +96,12 @@ class ReportController extends Controller
         $validated = $request->validate([
             'store_id' => 'required|exists:stores,id',
             'category_id' => 'nullable|exists:product_categories,id',
-            'low_stock_only' => 'nullable|boolean',
         ]);
-
+        $validated['low_stock_only'] = $request->query('low_stock_only', false);
         // Get current stock levels
         $stockLevels = StockLedger::select('product_id', 'product_variant_id', 'store_id')
-            ->selectRaw('SUM(quantity_change) as current_quantity')
-            ->selectRaw('SUM(quantity_change * unit_cost) / NULLIF(SUM(quantity_change), 0) as avg_cost')
+            ->selectRaw('SUM(quantity) as current_quantity')
+            ->selectRaw('SUM(quantity * unit_cost) / NULLIF(SUM(quantity), 0) as avg_cost')
             ->where('store_id', $validated['store_id'])
             ->groupBy('product_id', 'product_variant_id', 'store_id')
             ->having('current_quantity', '>', 0)
@@ -270,7 +269,7 @@ class ReportController extends Controller
 
         // Low stock alerts
         $lowStockQuery = StockLedger::select('product_id', 'store_id')
-            ->selectRaw('SUM(quantity_change) as current_quantity')
+            ->selectRaw('SUM(quantity) as current_quantity')
             ->groupBy('product_id', 'store_id')
             ->havingRaw('current_quantity > 0');
 
@@ -290,8 +289,8 @@ class ReportController extends Controller
         // Wallet stats
         $walletQuery = WalletTransaction::whereBetween('created_at', $dateRange);
         $walletStats = [
-            'total_credits' => $walletQuery->clone()->where('transaction_type', 'credit')->sum('amount'),
-            'total_debits' => $walletQuery->clone()->where('transaction_type', 'debit')->sum('amount'),
+            'total_credits' => $walletQuery->clone()->where('type', 'credit')->sum('amount'),
+            'total_debits' => $walletQuery->clone()->where('type', 'debit')->sum('amount'),
             'pending_approvals' => $walletQuery->clone()->where('status', 'pending')->count(),
         ];
 

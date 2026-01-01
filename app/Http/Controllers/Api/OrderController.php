@@ -67,13 +67,14 @@ class OrderController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'store_id' => 'required|exists:stores,id',
-            'delivery_address' => 'required|string',
-            'delivery_phone' => 'required|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'delivery_address' => 'nullable|string',
+            'delivery_phone' => 'nullable|string',
+            'delivery_date' => 'nullable|date',
+            'items' => 'nullable|array',
+            'items.*.product_id' => 'required_with:items|exists:products,id',
             'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.quantity' => 'required_with:items|numeric|min:0.01',
+            'items.*.unit_price' => 'required_with:items|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
@@ -83,8 +84,10 @@ class OrderController extends Controller
 
             // Calculate totals
             $subtotal = 0;
-            foreach ($validated['items'] as $item) {
-                $subtotal += $item['quantity'] * $item['unit_price'];
+            if (!empty($validated['items'])) {
+                foreach ($validated['items'] as $item) {
+                    $subtotal += $item['quantity'] * $item['unit_price'];
+                }
             }
 
             // Create order
@@ -93,27 +96,30 @@ class OrderController extends Controller
                 'customer_id' => $validated['customer_id'],
                 'store_id' => $validated['store_id'],
                 'order_date' => now(),
+                'delivery_date' => $validated['delivery_date'] ?? null,
                 'status' => 'draft',
                 'subtotal' => $subtotal,
                 'discount_amount' => 0,
                 'tax_amount' => 0,
                 'total_amount' => $subtotal,
-                'delivery_address' => $validated['delivery_address'],
-                'delivery_phone' => $validated['delivery_phone'],
+                'delivery_address' => $validated['delivery_address'] ?? null,
+                'delivery_phone' => $validated['delivery_phone'] ?? $customer->phone ?? null,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
             // Create order items
-            foreach ($validated['items'] as $item) {
-                $order->items()->create([
-                    'product_id' => $item['product_id'],
-                    'product_variant_id' => $item['product_variant_id'] ?? null,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'discount_percentage' => 0,
-                    'discount_amount' => 0,
-                    'line_total' => $item['quantity'] * $item['unit_price'],
-                ]);
+            if (!empty($validated['items'])) {
+                foreach ($validated['items'] as $item) {
+                    $order->items()->create([
+                        'product_id' => $item['product_id'],
+                        'product_variant_id' => $item['product_variant_id'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'discount_percentage' => 0,
+                        'discount_amount' => 0,
+                        'line_total' => $item['quantity'] * $item['unit_price'],
+                    ]);
+                }
             }
 
             AuditLog::log('created', $order, null, $order->toArray(), 'Order created');

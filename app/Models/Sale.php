@@ -72,6 +72,12 @@ class Sale extends Model
         return $this->belongsTo(Store::class);
     }
 
+    // createdBy
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cashier_id');
+    }
+
     public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');

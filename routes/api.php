@@ -85,6 +85,7 @@ Route::middleware(['auth:sanctum', 'log.api', 'validate.json'])->group(function 
         Route::get('/stock-ledger', [InventoryController::class, 'stockLedger']);
         Route::get('/low-stock-alert', [InventoryController::class, 'lowStockAlert']);
         Route::get('/stock-balance', [InventoryController::class, 'stockBalance']);
+        Route::get('/stock-transfers', [InventoryController::class, 'getTransfers']);
         Route::post('/stock-transfers', [InventoryController::class, 'createTransfer']);
     });
 

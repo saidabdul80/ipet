@@ -85,94 +85,50 @@
     <!-- Stats Cards -->
     <v-row>
       <v-col cols="12" sm="6" md="3">
-        <v-card class="stat-card stat-card-primary" elevation="2">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start mb-4">
-              <div>
-                <div class="text-subtitle-2 text-grey-darken-1 mb-1">Total Sales</div>
-                <div class="text-h4 font-weight-bold">{{ stats.sales?.total_sales || 0 }}</div>
-              </div>
-              <v-avatar color="primary" size="56" class="stat-icon">
-                <v-icon size="32">mdi-cart</v-icon>
-              </v-avatar>
+        <v-card elevation="1" class="pa-4">
+          <div class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-caption text-grey mb-1">Total Sales</div>
+              <div class="text-h5 font-weight-bold">{{ formatNumber(stats.sales?.total_sales || 0) }}</div>
             </div>
-            <div class="d-flex align-center">
-              <v-chip size="small" color="success" variant="flat" class="mr-2">
-                <v-icon left size="small">mdi-trending-up</v-icon>
-                +12%
-              </v-chip>
-              <span class="text-caption text-grey">vs last {{ selectedPeriod.toLowerCase() }}</span>
-            </div>
-          </v-card-text>
+            <v-icon size="40" color="primary">mdi-cart</v-icon>
+          </div>
         </v-card>
       </v-col>
 
       <v-col cols="12" sm="6" md="3">
-        <v-card class="stat-card stat-card-success" elevation="2">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start mb-4">
-              <div>
-                <div class="text-subtitle-2 text-grey-darken-1 mb-1">Revenue</div>
-                <div class="text-h4 font-weight-bold">₦{{ formatNumber(stats.sales?.total_revenue || 0) }}</div>
-              </div>
-              <v-avatar color="success" size="56" class="stat-icon">
-                <v-icon size="32">mdi-cash-multiple</v-icon>
-              </v-avatar>
+        <v-card elevation="1" class="pa-4">
+          <div class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-caption text-grey mb-1">Revenue</div>
+              <div class="text-h5 font-weight-bold">₦{{ formatNumber(stats.sales?.total_revenue || 0) }}</div>
             </div>
-            <div class="d-flex align-center">
-              <v-chip size="small" color="success" variant="flat" class="mr-2">
-                <v-icon left size="small">mdi-trending-up</v-icon>
-                +8.5%
-              </v-chip>
-              <span class="text-caption text-grey">vs last {{ selectedPeriod.toLowerCase() }}</span>
-            </div>
-          </v-card-text>
+            <v-icon size="40" color="success">mdi-cash-multiple</v-icon>
+          </div>
         </v-card>
       </v-col>
 
       <v-col cols="12" sm="6" md="3">
-        <v-card class="stat-card stat-card-info" elevation="2">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start mb-4">
-              <div>
-                <div class="text-subtitle-2 text-grey-darken-1 mb-1">Profit</div>
-                <div class="text-h4 font-weight-bold">₦{{ formatNumber(stats.sales?.total_profit || 0) }}</div>
-              </div>
-              <v-avatar color="info" size="56" class="stat-icon">
-                <v-icon size="32">mdi-chart-line</v-icon>
-              </v-avatar>
+        <v-card elevation="1" class="pa-4">
+          <div class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-caption text-grey mb-1">Profit</div>
+              <div class="text-h5 font-weight-bold">₦{{ formatNumber(stats.sales?.total_profit || 0) }}</div>
             </div>
-            <div class="d-flex align-center">
-              <v-chip size="small" color="success" variant="flat" class="mr-2">
-                <v-icon left size="small">mdi-trending-up</v-icon>
-                +15.3%
-              </v-chip>
-              <span class="text-caption text-grey">vs last {{ selectedPeriod.toLowerCase() }}</span>
-            </div>
-          </v-card-text>
+            <v-icon size="40" color="info">mdi-chart-line</v-icon>
+          </div>
         </v-card>
       </v-col>
 
       <v-col cols="12" sm="6" md="3">
-        <v-card class="stat-card stat-card-warning" elevation="2">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start mb-4">
-              <div>
-                <div class="text-subtitle-2 text-grey-darken-1 mb-1">Low Stock Items</div>
-                <div class="text-h4 font-weight-bold">{{ stats.inventory?.low_stock_items || 0 }}</div>
-              </div>
-              <v-avatar color="warning" size="56" class="stat-icon">
-                <v-icon size="32">mdi-alert</v-icon>
-              </v-avatar>
+        <v-card elevation="1" class="pa-4">
+          <div class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-caption text-grey mb-1">Low Stock Items</div>
+              <div class="text-h5 font-weight-bold">{{ formatNumber(stats.inventory?.low_stock_items || 0) }}</div>
             </div>
-            <div class="d-flex align-center">
-              <v-chip size="small" color="warning" variant="flat" class="mr-2">
-                <v-icon left size="small">mdi-alert-circle</v-icon>
-                Attention
-              </v-chip>
-              <span class="text-caption text-grey">Requires restocking</span>
-            </div>
-          </v-card-text>
+            <v-icon size="40" color="warning">mdi-alert</v-icon>
+          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -180,49 +136,29 @@
     <!-- Orders & Wallet Stats -->
     <v-row>
       <v-col cols="12" md="6">
-        <v-card class="detail-card" elevation="2">
-          <v-card-title class="d-flex align-center pa-6 pb-4">
-            <v-icon color="primary" class="mr-2">mdi-clipboard-list</v-icon>
-            <span class="font-weight-bold">Orders Overview</span>
+        <v-card elevation="1">
+          <v-card-title class="d-flex align-center">
+            <v-icon class="mr-2">mdi-clipboard-list</v-icon>
+            <span>Orders Overview</span>
           </v-card-title>
           <v-divider></v-divider>
-          <v-card-text class="pa-6">
+          <v-card-text>
             <v-row>
-              <v-col cols="6" class="mb-4">
-                <div class="order-stat-box">
-                  <div class="d-flex align-center mb-2">
-                    <v-icon color="grey" size="small" class="mr-2">mdi-package-variant</v-icon>
-                    <span class="text-caption text-grey">Total Orders</span>
-                  </div>
-                  <div class="text-h4 font-weight-bold">{{ stats.orders?.total_orders || 0 }}</div>
-                </div>
-              </v-col>
-              <v-col cols="6" class="mb-4">
-                <div class="order-stat-box">
-                  <div class="d-flex align-center mb-2">
-                    <v-icon color="warning" size="small" class="mr-2">mdi-clock-outline</v-icon>
-                    <span class="text-caption text-grey">Pending</span>
-                  </div>
-                  <div class="text-h4 font-weight-bold text-warning">{{ stats.orders?.pending_orders || 0 }}</div>
-                </div>
+              <v-col cols="6">
+                <div class="text-caption text-grey">Total Orders</div>
+                <div class="text-h6 font-weight-bold">{{ formatNumber(stats.orders?.total_orders || 0) }}</div>
               </v-col>
               <v-col cols="6">
-                <div class="order-stat-box">
-                  <div class="d-flex align-center mb-2">
-                    <v-icon color="info" size="small" class="mr-2">mdi-check-circle</v-icon>
-                    <span class="text-caption text-grey">Confirmed</span>
-                  </div>
-                  <div class="text-h4 font-weight-bold text-info">{{ stats.orders?.confirmed_orders || 0 }}</div>
-                </div>
+                <div class="text-caption text-grey">Pending</div>
+                <div class="text-h6 font-weight-bold text-warning">{{ formatNumber(stats.orders?.pending_orders || 0) }}</div>
               </v-col>
               <v-col cols="6">
-                <div class="order-stat-box">
-                  <div class="d-flex align-center mb-2">
-                    <v-icon color="success" size="small" class="mr-2">mdi-check-all</v-icon>
-                    <span class="text-caption text-grey">Completed</span>
-                  </div>
-                  <div class="text-h4 font-weight-bold text-success">{{ stats.orders?.completed_orders || 0 }}</div>
-                </div>
+                <div class="text-caption text-grey">Confirmed</div>
+                <div class="text-h6 font-weight-bold text-info">{{ formatNumber(stats.orders?.confirmed_orders || 0) }}</div>
+              </v-col>
+              <v-col cols="6">
+                <div class="text-caption text-grey">Completed</div>
+                <div class="text-h6 font-weight-bold text-success">{{ formatNumber(stats.orders?.completed_orders || 0) }}</div>
               </v-col>
             </v-row>
           </v-card-text>

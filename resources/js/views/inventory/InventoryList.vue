@@ -64,7 +64,7 @@
             >
               <template v-slot:item.current_quantity="{ item }">
                 <v-chip :color="getStockColor(item)" size="small">
-                  {{ item.current_quantity }}
+                  {{ item.current_quantity }} {{ item.unit?.short_name || '' }}
                 </v-chip>
               </template>
               <template v-slot:item.average_cost="{ item }">
@@ -202,12 +202,65 @@
       <v-window-item value="transfers">
         <v-card>
           <v-card-text>
-            <v-btn color="primary" @click="openTransferDialog" class="mb-4" v-if="authStore.hasPermission('create_stock_transfers')">
-              <v-icon left>mdi-transfer</v-icon>
-              New Transfer
-            </v-btn>
+            <v-row class="mb-4">
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="transferFilters.store_id"
+                  :items="stores"
+                  item-title="name"
+                  item-value="id"
+                  label="Filter by Store"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  @update:model-value="loadTransfers"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="transferFilters.status"
+                  :items="['pending', 'approved', 'completed', 'cancelled']"
+                  label="Status"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  @update:model-value="loadTransfers"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="auto">
+                <v-btn color="primary" @click="openTransferDialog" v-if="authStore.hasPermission('create_stock_transfers')">
+                  <v-icon left>mdi-transfer</v-icon>
+                  New Transfer
+                </v-btn>
+              </v-col>
+            </v-row>
 
-            <p class="text-grey">Stock transfer history will be displayed here.</p>
+            <v-data-table
+              :headers="transferHeaders"
+              :items="transfers"
+              :loading="loadingTransfers"
+            >
+              <template v-slot:item.transfer_number="{ item }">
+                <span class="font-weight-medium">{{ item.transfer_number }}</span>
+              </template>
+              <template v-slot:item.transfer_date="{ item }">
+                {{ new Date(item.transfer_date).toLocaleDateString() }}
+              </template>
+              <template v-slot:item.from_store="{ item }">
+                {{ item.from_store?.name }}
+              </template>
+              <template v-slot:item.to_store="{ item }">
+                {{ item.to_store?.name }}
+              </template>
+              <template v-slot:item.status="{ item }">
+                <v-chip :color="getTransferStatusColor(item.status)" size="small">
+                  {{ item.status }}
+                </v-chip>
+              </template>
+              <template v-slot:item.initiated_by="{ item }">
+                {{ item.initiated_by?.name || 'N/A' }}
+              </template>
+            </v-data-table>
           </v-card-text>
         </v-card>
       </v-window-item>
@@ -282,6 +335,7 @@ const activeTab = ref('stock-levels');
 const loading = ref(false);
 const loadingLedger = ref(false);
 const loadingLowStock = ref(false);
+const loadingTransfers = ref(false);
 const savingTransfer = ref(false);
 const transferDialog = ref(false);
 
@@ -291,10 +345,12 @@ const products = ref([]);
 const stockLevels = ref([]);
 const stockLedger = ref([]);
 const lowStockItems = ref([]);
+const transfers = ref([]);
 
 const filters = ref({ store_id: null, category_id: null, search: '' });
 const ledgerFilters = ref({ store_id: null, product_id: null, date_from: '', date_to: '' });
 const lowStockFilter = ref({ store_id: null });
+const transferFilters = ref({ store_id: null, status: null });
 
 const transferData = ref({
   from_store_id: null,
@@ -321,6 +377,16 @@ const ledgerHeaders = [
   { title: 'Out', key: 'quantity_out' },
   { title: 'Balance', key: 'balance_quantity' },
   { title: 'Reference', key: 'reference_type' },
+];
+
+const transferHeaders = [
+  { title: 'Transfer #', key: 'transfer_number' },
+  { title: 'Date', key: 'transfer_date' },
+  { title: 'From Store', key: 'from_store' },
+  { title: 'To Store', key: 'to_store' },
+  { title: 'Status', key: 'status' },
+  { title: 'Initiated By', key: 'initiated_by' },
+  { title: 'Notes', key: 'notes' },
 ];
 
 const lowStockHeaders = [
@@ -448,6 +514,28 @@ const loadLowStock = async () => {
   }
 };
 
+const loadTransfers = async () => {
+  loadingTransfers.value = true;
+  try {
+    const response = await axios.get('/api/inventory/stock-transfers', { params: transferFilters.value });
+    transfers.value = response.data.data || response.data;
+  } catch (error) {
+    console.error('Failed to load transfers:', error);
+  } finally {
+    loadingTransfers.value = false;
+  }
+};
+
+const getTransferStatusColor = (status) => {
+  const colors = {
+    pending: 'warning',
+    approved: 'info',
+    completed: 'success',
+    cancelled: 'error',
+  };
+  return colors[status] || 'grey';
+};
+
 const openTransferDialog = () => {
   transferData.value = {
     from_store_id: null,
@@ -465,6 +553,7 @@ const createTransfer = async () => {
     await axios.post('/api/inventory/stock-transfers', transferData.value);
     transferDialog.value = false;
     alert('Stock transfer created successfully!');
+    loadTransfers(); // Reload transfers
   } catch (error) {
     console.error('Failed to create transfer:', error);
     alert('Failed to create transfer');

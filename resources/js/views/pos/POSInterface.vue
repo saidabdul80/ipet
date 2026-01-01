@@ -89,8 +89,17 @@
           <v-card-text style="max-height: 400px; overflow-y: auto;">
             <v-list v-if="cart.length > 0">
               <v-list-item v-for="(item, index) in cart" :key="index">
-                <v-list-item-title>{{ item.name }}</v-list-item-title>
+                <v-list-item-title>
+                  {{ item.name }}
+                  <v-chip v-if="item.selling_price !== item.original_price" size="x-small" color="success" class="ml-2">
+                    Special Price
+                  </v-chip>
+                </v-list-item-title>
                 <v-list-item-subtitle>
+                  <div v-if="item.selling_price !== item.original_price" class="text-caption text-grey mb-1">
+                    <span class="text-decoration-line-through">₦{{ formatNumber(item.original_price) }}</span>
+                    → ₦{{ formatNumber(item.selling_price) }}
+                  </div>
                   <v-row align="center" class="mt-2">
                     <v-col cols="6">
                       <v-text-field
@@ -101,7 +110,11 @@
                         variant="outlined"
                         hide-details
                         @input="updateCartItem(index)"
-                      ></v-text-field>
+                      >
+                        <template v-slot:append-inner v-if="item.unit">
+                          <span class="text-caption text-grey">{{ item.unit?.short_name }}</span>
+                        </template>
+                      </v-text-field>
                     </v-col>
                     <v-col cols="6" class="text-right">
                       ₦{{ formatNumber(item.quantity * item.selling_price) }}
@@ -218,7 +231,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import axios from 'axios';
@@ -282,6 +295,7 @@ const searchProduct = async () => {
 const addToCart = async (product) => {
   // Apply customer pricing
   let finalPrice = product.selling_price;
+  let priceSource = 'default';
 
   if (selectedCustomer.value) {
     try {
@@ -293,12 +307,18 @@ const addToCart = async (product) => {
 
       if (customerPricing && customerPricing.special_price) {
         finalPrice = customerPricing.special_price;
+        priceSource = 'customer_special';
+        console.log(`Applied customer special price for ${product.name}: ₦${finalPrice}`);
       }
       // Check for category pricing (wholesaler/retailer)
       else if (customer?.category === 'wholesaler' && product.wholesale_price) {
         finalPrice = product.wholesale_price;
+        priceSource = 'wholesaler';
+        console.log(`Applied wholesaler price for ${product.name}: ₦${finalPrice}`);
       } else if (customer?.category === 'retailer' && product.retailer_price) {
         finalPrice = product.retailer_price;
+        priceSource = 'retailer';
+        console.log(`Applied retailer price for ${product.name}: ₦${finalPrice}`);
       }
     } catch (error) {
       console.error('Failed to get customer pricing:', error);
@@ -309,13 +329,21 @@ const addToCart = async (product) => {
   const existingItem = cart.value.find(item => item.id === product.id);
   if (existingItem) {
     existingItem.quantity++;
+    // Update price if it changed (e.g., customer was selected after adding item)
+    if (existingItem.selling_price !== finalPrice) {
+      existingItem.selling_price = finalPrice;
+      existingItem.original_price = product.selling_price;
+      console.log(`Updated price for existing item ${product.name}: ₦${finalPrice}`);
+    }
   } else {
     cart.value.push({
       ...product,
       quantity: 1,
       selling_price: finalPrice,
       original_price: product.selling_price,
+      price_source: priceSource,
     });
+    console.log(`Added ${product.name} to cart at ₦${finalPrice} (${priceSource})`);
   }
   searchQuery.value = '';
   searchResults.value = [];
@@ -383,6 +411,7 @@ const processSaleWithPayments = async (payments = null) => {
       items: cart.value.map(item => ({
         product_id: item.id,
         quantity: item.quantity,
+        unit_id: item.unit_id || null,
         unit_price: item.selling_price,
       })),
     };
@@ -413,6 +442,50 @@ const processSaleWithPayments = async (payments = null) => {
     processing.value = false;
   }
 };
+
+// Watch for customer changes and update cart prices
+watch(selectedCustomer, async (newCustomerId, oldCustomerId) => {
+  if (!newCustomerId || newCustomerId === oldCustomerId || cart.value.length === 0) {
+    console.log('Customer watcher: skipping update', { newCustomerId, oldCustomerId, cartLength: cart.value.length });
+    return;
+  }
+
+  console.log(`Customer changed from ${oldCustomerId} to ${newCustomerId}, updating ${cart.value.length} cart items...`);
+
+  // Update prices for all items in cart
+  for (const item of cart.value) {
+    let finalPrice = item.original_price || item.selling_price;
+    let priceSource = 'default';
+
+    try {
+      const customer = customers.value.find(c => c.id === newCustomerId);
+
+      // Check for customer-specific pricing
+      const pricingResponse = await axios.get(`/api/customers/${newCustomerId}/pricing`);
+      const customerPricing = pricingResponse.data.find(p => p.product_id === item.id);
+
+      if (customerPricing && customerPricing.special_price) {
+        finalPrice = customerPricing.special_price;
+        priceSource = 'customer_special';
+      }
+      // Check for category pricing (wholesaler/retailer)
+      else if (customer?.category === 'wholesaler' && item.wholesale_price) {
+        finalPrice = item.wholesale_price;
+        priceSource = 'wholesaler';
+      } else if (customer?.category === 'retailer' && item.retailer_price) {
+        finalPrice = item.retailer_price;
+        priceSource = 'retailer';
+      }
+
+      console.log(`Updated ${item.name}: ₦${item.selling_price} → ₦${finalPrice} (${priceSource})`);
+    } catch (error) {
+      console.error('Failed to get customer pricing:', error);
+    }
+
+    item.selling_price = finalPrice;
+    item.price_source = priceSource;
+  }
+});
 
 onMounted(async () => {
   // Load quick products

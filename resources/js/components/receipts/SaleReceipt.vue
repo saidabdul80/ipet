@@ -18,7 +18,8 @@
             <div v-if="appSettings.company_phone" class="info-line">Tel: {{ appSettings.company_phone }}</div>
             <div v-if="appSettings.company_email" class="info-line">{{ appSettings.company_email }}</div>
           </div>
-          <div class="divider-double">════════════════════════════════</div>
+          <div class="divider-double"></div>
+          
           <!-- Receipt Details -->
           <div class="receipt-info">
             <div class="info-row">
@@ -39,7 +40,7 @@
             </div>
           </div>
 
-          <div class="divider-double">════════════════════════════════</div>
+          <div class="divider-double"></div>
 
           <!-- Items Header -->
           <div class="items-header">
@@ -48,21 +49,21 @@
             <span class="header-price">PRICE</span>
             <span class="header-total">TOTAL</span>
           </div>
-          <div class="divider-thin">- - - - - - - - - - - - - - - - -</div>
+          <div class="divider-thin">----------------------------------------------------</div>
 
           <!-- Items -->
           <div class="items-section">
             <div v-for="item in sale.items" :key="item.id" class="item-row">
-              <div class="item-name">{{ item.product?.name || 'N/A' }}</div>
-              <div class="item-details">
-                <span class="item-qty">{{ item.quantity }}</span>
+              <div class="item-row-content">
+                <span class="item-name">{{ item.product?.name || 'N/A' }}</span>
+                <span class="item-qty">{{ item.quantity }} {{ item.unit?.short_name || '' }}</span>
                 <span class="item-price">{{ formatCurrency(item.unit_price) }}</span>
                 <span class="item-total bold">{{ formatCurrency(item.line_total) }}</span>
               </div>
             </div>
           </div>
 
-          <div class="divider-double">════════════════════════════════</div>
+          <div class="divider-double"></div>
 
           <!-- Totals -->
           <div class="totals-section">
@@ -78,19 +79,19 @@
               <span class="label">Tax:</span>
               <span class="value">{{ formatCurrency(sale.tax_amount) }}</span>
             </div>
-            <div class="divider-thin">- - - - - - - - - - - - - - - - -</div>
+            <div class="divider-thin">----------------------------------------------------</div>
             <div class="total-row grand-total">
               <span class="label">TOTAL:</span>
               <span class="value">{{ formatCurrency(sale.total_amount) }}</span>
             </div>
           </div>
 
-          <div class="divider-double">════════════════════════════════</div>
+          <div class="divider-double"></div>
 
           <!-- Payment Details -->
           <div class="payment-section">
             <div v-if="isSplitPayment" class="split-payment">
-              <div class="section-title">═══ PAYMENT BREAKDOWN ═══</div>
+              <div class="section-title">════ PAYMENT BREAKDOWN ════</div>
               <div v-for="(payment, index) in sale.payments" :key="payment.id" class="payment-item">
                 <div class="payment-row">
                   <span class="label">{{ formatPaymentMethod(payment.payment_method) }}:</span>
@@ -100,7 +101,7 @@
                   Ref: {{ payment.reference }}
                 </div>
               </div>
-              <div class="divider-thin">- - - - - - - - - - - - - - - - -</div>
+              <div class="divider-thin">--------------------------------</div>
             </div>
 
             <div class="total-row payment-total">
@@ -117,13 +118,15 @@
             </div>
           </div>
 
-          <div class="divider-double">════════════════════════════════</div>
+          <div class="divider-double"></div>
 
           <!-- Footer -->
           <div class="receipt-footer">
-            <div class="thank-you">THANK YOU!</div>
-            <div class="info-line">Please come again</div>
+            <div class="thank-you">THANK YOU FOR YOUR BUSINESS!</div>
+            <div class="info-line">Items are non-returnable once opened</div>
+            <div class="info-line">Come again!</div>
             <div v-if="appSettings.company_website" class="info-line">{{ appSettings.company_website }}</div>
+            <div class="info-line receipt-date">{{ formatReceiptDate() }}</div>
           </div>
         </div>
       </v-card-text>
@@ -189,129 +192,153 @@ const printReceipt = () => {
           body {
             font-family: 'Courier New', monospace;
             font-size: 12px;
-            line-height: 1.4;
+            line-height: 1.2;
             width: 80mm;
             margin: 0 auto;
-            padding: 10mm;
+            padding: 5mm 2mm;
+            background: white;
           }
           .thermal-receipt {
             width: 100%;
           }
           .receipt-header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
           }
           
           .company-name {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
+            letter-spacing: 0.5px;
           }
           .info-line {
-            font-size: 11px;
-            margin-bottom: 2px;
+            font-size: 9px;
+            margin-bottom: 1px;
           }
           .divider-double {
             text-align: center;
-            margin: 8px 0;
+            margin: 6px 0;
             font-size: 10px;
-            font-weight: bold;
             letter-spacing: -1px;
           }
           .divider-thin {
             text-align: center;
             margin: 4px 0;
             font-size: 10px;
-            letter-spacing: 0.5px;
+            letter-spacing: -0.5px;
           }
           .receipt-info, .payment-section {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
           }
           .info-row, .total-row, .payment-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 3px;
-            font-size: 12px;
+            margin-bottom: 2px;
+            font-size: 11px;
           }
           .label {
-            flex: 1;
             text-align: left;
           }
           .value {
-            flex: 1;
             text-align: right;
           }
           .bold {
             font-weight: bold;
           }
+          /* Fixed Items Section */
           .items-header {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
-            gap: 4px;
+            display: flex;
+            justify-content: space-between;
             font-weight: bold;
-            font-size: 11px;
-            margin-bottom: 4px;
+            font-size: 10px;
+            margin-bottom: 2px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          .header-item { text-align: left; }
-          .header-qty { text-align: center; }
-          .header-price { text-align: right; }
-          .header-total { text-align: right; }
+          .header-item { 
+            flex: 1; 
+            text-align: left;
+            min-width: 120px;
+          }
+          .header-qty { 
+            width: 40px; 
+            text-align: center;
+          }
+          .header-price { 
+            width: 60px; 
+            text-align: right;
+          }
+          .header-total { 
+            width: 60px; 
+            text-align: right;
+          }
           .items-section {
-            margin-bottom: 8px;
-          }
-          .item-row {
             margin-bottom: 6px;
           }
-          .item-name {
-            font-weight: bold;
-            font-size: 12px;
-            display: block;
-            margin-bottom: 2px;
+          .item-row {
+            margin-bottom: 4px;
           }
-          .item-details {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
-            gap: 4px;
+          .item-row-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
             font-size: 11px;
           }
-          .item-qty { text-align: center; }
-          .item-price { text-align: right; }
-          .item-total { text-align: right; font-weight: bold; }
+          .item-name {
+            flex: 1;
+            text-align: left;
+            min-width: 120px;
+            word-wrap: break-word;
+          }
+          .item-qty {
+            width: 40px;
+            text-align: center;
+          }
+          .item-price {
+            width: 60px;
+            text-align: right;
+          }
+          .item-total {
+            width: 60px;
+            text-align: right;
+            font-weight: bold;
+          }
           .totals-section {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
           }
           .grand-total {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: bold;
-            margin-top: 4px;
-            padding-top: 4px;
+            margin-top: 3px;
+            padding-top: 3px;
+            border-top: 1px dotted #000;
           }
           .grand-total .label,
           .grand-total .value {
-            font-size: 15px;
+            font-size: 13px;
           }
           .discount .value {
             color: #d32f2f;
           }
           .section-title {
             font-weight: bold;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             text-align: center;
-            font-size: 12px;
+            font-size: 10px;
             letter-spacing: 0.5px;
           }
           .split-payment {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             background: #f5f5f5;
-            padding: 8px;
+            padding: 6px;
             border: 1px dashed #999;
           }
           .payment-item {
-            margin-bottom: 4px;
+            margin-bottom: 3px;
           }
           .payment-ref {
-            font-size: 10px;
+            font-size: 9px;
             margin-left: 10px;
             color: #666;
             font-style: italic;
@@ -331,16 +358,21 @@ const printReceipt = () => {
           }
           .receipt-footer {
             text-align: center;
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 2px dashed #999;
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed #999;
           }
           .thank-you {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             text-transform: uppercase;
             letter-spacing: 1px;
+          }
+          .receipt-date {
+            font-size: 8px;
+            color: #666;
+            margin-top: 4px;
           }
           @media print {
             body {
@@ -388,6 +420,17 @@ const formatDate = (date) => {
   });
 };
 
+const formatReceiptDate = () => {
+  return new Date().toLocaleString('en-NG', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 const formatPaymentMethod = (method) => {
   const methods = {
     'cash': 'Cash',
@@ -402,55 +445,58 @@ const formatPaymentMethod = (method) => {
 
 <style scoped>
 .thermal-receipt {
-  font-family: 'Courier New', 'Consolas', monospace;
-  font-size: 12px;
-  line-height: 1.4;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.2;
   background: white;
-  padding: 16px;
-  max-width: 350px;
+  padding: 12px 8px;
+  max-width: 80mm;
   margin: 0 auto;
   color: #000;
 }
 
 .receipt-header {
   text-align: center;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .company-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  line-height: 1.1;
 }
 
 .info-line {
-  font-size: 11px;
-  margin-bottom: 2px;
+  font-size: 9px;
+  margin-bottom: 1px;
   color: #333;
+  line-height: 1.1;
 }
 
 .divider-double {
   text-align: center;
-  margin: 8px 0;
+  margin: 6px 0;
   color: #000;
   font-size: 10px;
-  font-weight: bold;
   letter-spacing: -1px;
+  line-height: 1;
 }
 
 .divider-thin {
   text-align: center;
-  margin: 5px 0;
+  margin: 4px 0;
   color: #666;
   font-size: 10px;
-  letter-spacing: 0.5px;
+  letter-spacing: -0.5px;
+  line-height: 1;
 }
 
 .receipt-info,
 .payment-section {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .info-row,
@@ -458,17 +504,16 @@ const formatPaymentMethod = (method) => {
 .payment-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 3px;
-  font-size: 12px;
+  margin-bottom: 2px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .label {
-  flex: 1;
   text-align: left;
 }
 
 .value {
-  flex: 1;
   text-align: right;
 }
 
@@ -476,85 +521,97 @@ const formatPaymentMethod = (method) => {
   font-weight: bold;
 }
 
-/* Items Section - FIXED */
+/* Fixed Items Section with Flexbox */
 .items-header {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
-  gap: 4px;
+  display: flex;
+  justify-content: space-between;
   font-weight: bold;
-  font-size: 11px;
-  margin-bottom: 4px;
+  font-size: 10px;
+  margin-bottom: 2px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .header-item {
+  flex: 1;
   text-align: left;
+  min-width: 120px;
 }
 
 .header-qty {
+  width: 40px;
   text-align: center;
 }
 
 .header-price {
+  width: 60px;
   text-align: right;
 }
 
 .header-total {
+  width: 60px;
   text-align: right;
 }
 
 .items-section {
-  margin-bottom: 8px;
-}
-
-.item-row {
   margin-bottom: 6px;
 }
 
-.item-name {
-  font-weight: bold;
-  font-size: 12px;
-  display: block;
-  margin-bottom: 2px;
+.item-row {
+  margin-bottom: 4px;
 }
 
-/* FIXED: Removed the extra spacer and aligned grid properly */
-.item-details {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
-  gap: 4px;
+.item-row-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   font-size: 11px;
-  color: #333;
+  line-height: 1.2;
+}
+
+.item-name {
+  flex: 1;
+  text-align: left;
+  min-width: 120px;
+  word-wrap: break-word;
+  padding-right: 4px;
 }
 
 .item-qty {
+  width: 40px;
   text-align: center;
+  font-family: 'Courier New', monospace;
 }
 
 .item-price {
+  width: 60px;
   text-align: right;
+  font-family: 'Courier New', monospace;
 }
 
 .item-total {
+  width: 60px;
   text-align: right;
   font-weight: bold;
+  font-family: 'Courier New', monospace;
 }
 
 /* Totals Section */
 .totals-section {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .grand-total {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: bold;
-  margin-top: 4px;
-  padding-top: 4px;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dotted #000;
 }
 
 .grand-total .label,
 .grand-total .value {
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .discount .value {
@@ -564,25 +621,25 @@ const formatPaymentMethod = (method) => {
 /* Payment Section */
 .section-title {
   font-weight: bold;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   text-align: center;
-  font-size: 12px;
+  font-size: 10px;
   letter-spacing: 0.5px;
 }
 
 .split-payment {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   background: #f5f5f5;
-  padding: 8px;
+  padding: 6px;
   border: 1px dashed #999;
 }
 
 .payment-item {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .payment-ref {
-  font-size: 10px;
+  font-size: 9px;
   margin-left: 10px;
   color: #666;
   font-style: italic;
@@ -608,16 +665,24 @@ const formatPaymentMethod = (method) => {
 /* Footer */
 .receipt-footer {
   text-align: center;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 2px dashed #999;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #999;
 }
 
 .thank-you {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: bold;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   text-transform: uppercase;
   letter-spacing: 1px;
+  line-height: 1.2;
+}
+
+.receipt-date {
+  font-size: 8px;
+  color: #666;
+  margin-top: 4px;
+  font-family: 'Courier New', monospace;
 }
 </style>
