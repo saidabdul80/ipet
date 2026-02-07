@@ -22,8 +22,8 @@ return new class extends Migration
         ];
 
         foreach ($supplierPermissions as $permission) {
-            if (!Permission::where('name', $permission)->exists()) {
-                Permission::create(['name' => $permission]);
+            if (!Permission::where('name', $permission)->where('guard_name', 'sanctum')->exists()) {
+                Permission::create(['name' => $permission, 'guard_name' => 'sanctum']);
             }
         }
 

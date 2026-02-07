@@ -39,7 +39,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'receive_stock',
             'adjust_stock',
             'transfer_stock',
-            'approve_stock_transfers',
+            // 'approve_stock_transfers',
             
             // Purchase Orders
             'view_purchase_orders',
@@ -98,21 +98,21 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'sanctum']);
         }
 
         // Create roles and assign permissions
-        
+
         // Super Admin - Full access
-        $superAdmin = Role::create(['name' => 'Super Admin']);
-        $superAdmin->givePermissionTo(Permission::all());
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'sanctum']);
+        $superAdmin->syncPermissions(Permission::all());
 
         // Branch Manager - Branch-level access
-        $branchManager = Role::create(['name' => 'Branch Manager']);
-        $branchManager->givePermissionTo([
+        $branchManager = Role::firstOrCreate(['name' => 'Branch Manager', 'guard_name' => 'sanctum']);
+        $branchManager->syncPermissions([
             'view_stores', 'create_stores', 'edit_stores',
             'view_products', 'create_products', 'edit_products', 'manage_product_pricing',
-            'view_inventory', 'receive_stock', 'adjust_stock', 'transfer_stock', 'approve_stock_transfers',
+            'view_inventory', 'receive_stock', 'adjust_stock', 'transfer_stock',
             'view_purchase_orders', 'create_purchase_orders', 'edit_purchase_orders', 'approve_purchase_orders',
             'view_sales', 'create_sales', 'apply_discounts',
             'view_orders', 'create_orders', 'edit_orders', 'confirm_orders',
@@ -125,16 +125,16 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Inventory Officer
-        $inventoryOfficer = Role::create(['name' => 'Inventory Officer']);
-        $inventoryOfficer->givePermissionTo([
+        $inventoryOfficer = Role::firstOrCreate(['name' => 'Inventory Officer', 'guard_name' => 'sanctum']);
+        $inventoryOfficer->syncPermissions([
             'view_products',
             'view_inventory', 'receive_stock', 'adjust_stock', 'transfer_stock',
             'view_purchase_orders', 'create_purchase_orders', 'receive_purchase_orders',
         ]);
 
         // Cashier/Sales Staff
-        $cashier = Role::create(['name' => 'Cashier']);
-        $cashier->givePermissionTo([
+        $cashier = Role::firstOrCreate(['name' => 'Cashier', 'guard_name' => 'sanctum']);
+        $cashier->syncPermissions([
             'view_products',
             'view_inventory',
             'view_sales', 'create_sales',
@@ -144,8 +144,8 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Accounts Officer
-        $accountsOfficer = Role::create(['name' => 'Accounts Officer']);
-        $accountsOfficer->givePermissionTo([
+        $accountsOfficer = Role::firstOrCreate(['name' => 'Accounts Officer', 'guard_name' => 'sanctum']);
+        $accountsOfficer->syncPermissions([
             'view_sales',
             'view_orders',
             'view_purchase_orders',
@@ -156,8 +156,8 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Customer (Portal Access)
-        $customer = Role::create(['name' => 'Customer']);
-        $customer->givePermissionTo([
+        $customer = Role::firstOrCreate(['name' => 'Customer', 'guard_name' => 'sanctum']);
+        $customer->syncPermissions([
             'view_products',
             'create_orders',
             'view_wallet_transactions',

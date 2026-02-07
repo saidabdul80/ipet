@@ -211,6 +211,36 @@ class InventoryController extends Controller
         return response()->json($transfers);
     }
 
+    public function getTransferDetails(StockTransfer $stockTransfer)
+    {
+        $this->authorize('view', $stockTransfer);
+
+        // Get transfer items from stock ledger
+        $transferItems = StockLedger::where('reference_type', 'stock_transfer')
+            ->where('reference_id', $stockTransfer->id)
+            ->where('transaction_type', 'transfer_out')
+            ->with(['product', 'product.unit'])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product->name,
+                    'product_sku' => $item->product->sku,
+                    'quantity' => abs($item->quantity),
+                    'unit_name' => $item->product->unit->name ?? 'N/A',
+                    'unit_cost' => $item->unit_cost,
+                    'line_total' => abs($item->quantity) * $item->unit_cost,
+                ];
+            });
+
+        $transfer = $stockTransfer->load(['fromStore', 'toStore', 'initiatedBy', 'approvedBy', 'receivedBy']);
+
+        return response()->json([
+            'transfer' => $transfer,
+            'items' => $transferItems,
+        ]);
+    }
+
     public function createTransfer(Request $request)
     {
         $this->authorize('create', StockTransfer::class);
@@ -305,6 +335,125 @@ class InventoryController extends Controller
             DB::rollBack();
             return response()->json([
                 'message' => 'Failed to create stock transfer',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function approveTransfer(Request $request, StockTransfer $stockTransfer)
+    {
+        $this->authorize('approve', $stockTransfer);
+
+        if ($stockTransfer->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only pending stock transfers can be approved',
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $oldStatus = $stockTransfer->status;
+
+            $stockTransfer->update([
+                'status' => 'in_transit',
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+            ]);
+
+            AuditLog::log(
+                'approved',
+                $stockTransfer,
+                ['status' => $oldStatus],
+                ['status' => 'in_transit'],
+                'Stock transfer approved and marked as in transit'
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Stock transfer approved successfully',
+                'transfer' => $stockTransfer->fresh(['fromStore', 'toStore', 'initiatedBy', 'approvedBy']),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to approve stock transfer',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function receiveTransfer(Request $request, StockTransfer $stockTransfer)
+    {
+        if (!$request->user()->hasPermissionTo('receive_stock_transfers')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!in_array($stockTransfer->status, ['approved', 'in_transit'])) {
+            return response()->json([
+                'message' => 'Only approved or in-transit stock transfers can be received',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'received_date' => 'nullable|date',
+            'notes' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $toStore = $stockTransfer->toStore;
+
+            // Get transfer items from stock ledger
+            $transferItems = StockLedger::where('reference_type', 'stock_transfer')
+                ->where('reference_id', $stockTransfer->id)
+                ->where('transaction_type', 'transfer_out')
+                ->get();
+
+            // Add stock to destination store
+            foreach ($transferItems as $ledgerItem) {
+                $this->stockService->recordTransaction(
+                    $toStore,
+                    $ledgerItem->product,
+                    'transfer_in',
+                    abs($ledgerItem->quantity),
+                    $ledgerItem->unit_cost,
+                    $ledgerItem->product_variant_id,
+                    'stock_transfer',
+                    $stockTransfer->id,
+                    "Transfer from {$stockTransfer->fromStore->name}"
+                );
+            }
+
+            $oldStatus = $stockTransfer->status;
+
+            $stockTransfer->update([
+                'status' => 'received',
+                'received_by' => $request->user()->id,
+                'actual_receipt_date' => $validated['received_date'] ?? now(),
+                'notes' => $validated['notes'] ?? $stockTransfer->notes,
+            ]);
+
+            AuditLog::log(
+                'received',
+                $stockTransfer,
+                ['status' => $oldStatus],
+                ['status' => 'received'],
+                'Stock transfer received'
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Stock transfer received successfully',
+                'transfer' => $stockTransfer->fresh(['fromStore', 'toStore', 'initiatedBy', 'approvedBy', 'receivedBy']),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to receive stock transfer',
                 'error' => $e->getMessage(),
             ], 400);
         }

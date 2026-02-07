@@ -760,20 +760,28 @@ const onUnitChange = async (item) => {
   if (!item.unit_id || !item.product_id) return;
 
   try {
+    console.log('Unit changed:', { product_id: item.product_id, unit_id: item.unit_id });
+
     // Get unit price
     const response = await axios.post(`/api/products/${item.product_id}/units/price`, {
       unit_id: item.unit_id,
       price_type: 'cost'
     });
 
+    console.log('Unit price response:', response.data);
+
     if (response.data.price) {
       item.unit_cost = response.data.price;
+      console.log('Updated unit_cost to:', item.unit_cost);
+    } else {
+      console.warn('No price returned from API');
     }
 
     // Calculate conversion info
     calculateConversion(item);
   } catch (error) {
     console.error('Failed to get unit price:', error);
+    console.error('Error details:', error.response?.data);
   }
 };
 

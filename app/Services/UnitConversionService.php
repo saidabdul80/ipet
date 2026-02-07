@@ -113,16 +113,20 @@ class UnitConversionService
         $baseUnit = $product->unit;
         $units = [[
             'id' => $baseUnit->id,
+            'unit_id' => $baseUnit->id,  // For consistency with product units
             'name' => $baseUnit->name,
             'short_name' => $baseUnit->short_name,
             'conversion_factor' => 1,
             'is_default' => true,
+            'cost_price' => null,
+            'selling_price' => null,
         ]];
 
         foreach ($productUnits as $pu) {
             $units[] = [
-                'id' => $pu->id,  // ProductUnit ID for editing
+                'id' => $pu->unit->id,  // Use unit ID for dropdown value
                 'unit_id' => $pu->unit->id,
+                'product_unit_id' => $pu->id,  // ProductUnit ID for editing
                 'unit' => [
                     'id' => $pu->unit->id,
                     'name' => $pu->unit->name,

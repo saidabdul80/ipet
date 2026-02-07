@@ -86,7 +86,10 @@ Route::middleware(['auth:sanctum', 'log.api', 'validate.json'])->group(function 
         Route::get('/low-stock-alert', [InventoryController::class, 'lowStockAlert']);
         Route::get('/stock-balance', [InventoryController::class, 'stockBalance']);
         Route::get('/stock-transfers', [InventoryController::class, 'getTransfers']);
+        Route::get('/stock-transfers/{stockTransfer}', [InventoryController::class, 'getTransferDetails']);
         Route::post('/stock-transfers', [InventoryController::class, 'createTransfer']);
+        Route::post('/stock-transfers/{stockTransfer}/approve', [InventoryController::class, 'approveTransfer']);
+        Route::post('/stock-transfers/{stockTransfer}/receive', [InventoryController::class, 'receiveTransfer']);
     });
 
     // Sales (with store access check)

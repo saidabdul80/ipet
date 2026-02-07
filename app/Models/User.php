@@ -15,6 +15,11 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
+    /**
+     * The guard name for Spatie Permission
+     */
+    protected $guard_name = 'sanctum';
+
     protected $fillable = [
         'name',
         'email',

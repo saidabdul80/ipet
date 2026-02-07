@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // Create delete_purchase_orders permission
-        $permission = Permission::create(['name' => 'delete_purchase_orders', 'guard_name' => 'web']);
+        $permission = Permission::create(['name' => 'delete_purchase_orders', 'guard_name' => 'sanctum']);
 
         // Assign to roles
         $superAdmin = Role::where('name', 'Super Admin')->first();

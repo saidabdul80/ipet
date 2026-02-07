@@ -14,78 +14,100 @@ class InitialDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create Super Admin User
-        $superAdmin = User::create([
-            'name' => 'Super Administrator',
-            'email' => 'admin@inventory.com',
-            'password' => Hash::make('password'),
-            'is_active' => true,
-        ]);
-        $superAdmin->assignRole('Super Admin');
-
         // Create Main Branch
-        $mainBranch = Branch::create([
-            'code' => 'BR001',
-            'name' => 'Main Branch',
-            'email' => 'main@inventory.com',
-            'phone' => '+234-800-000-0001',
-            'address' => '123 Main Street',
-            'city' => 'Lagos',
-            'state' => 'Lagos',
-            'country' => 'Nigeria',
-            'is_active' => true,
-        ]);
+        $mainBranch = Branch::firstOrCreate(
+            ['code' => 'BR001'],
+            [
+                'name' => 'Main Branch',
+                'email' => 'main@inventory.com',
+                'phone' => '+234-800-000-0001',
+                'address' => '123 Main Street',
+                'city' => 'Lagos',
+                'state' => 'Lagos',
+                'country' => 'Nigeria',
+                'is_active' => true,
+            ]
+        );
 
         // Create Stores for Main Branch
-        $mainWarehouse = Store::create([
-            'branch_id' => $mainBranch->id,
-            'code' => 'ST001',
-            'name' => 'Main Warehouse',
-            'type' => 'warehouse',
-            'location' => 'Building A, Ground Floor',
-            'is_active' => true,
-        ]);
+        $mainWarehouse = Store::firstOrCreate(
+            ['code' => 'ST001'],
+            [
+                'branch_id' => $mainBranch->id,
+                'name' => 'Main Warehouse',
+                'type' => 'warehouse',
+                'location' => 'Building A, Ground Floor',
+                'is_active' => true,
+            ]
+        );
 
-        $retailStore = Store::create([
-            'branch_id' => $mainBranch->id,
-            'code' => 'ST002',
-            'name' => 'Retail Store',
-            'type' => 'retail_store',
-            'location' => 'Building B, First Floor',
-            'is_active' => true,
-        ]);
+        $retailStore = Store::firstOrCreate(
+            ['code' => 'ST002'],
+            [
+                'branch_id' => $mainBranch->id,
+                'name' => 'Retail Store',
+                'type' => 'retail_store',
+                'location' => 'Building B, First Floor',
+                'is_active' => true,
+            ]
+        );
+
+        // Create Super Admin User
+        $superAdmin = User::firstOrCreate(
+            ['email' => 'admin@inventory.com'],
+            [
+                'name' => 'Super Administrator',
+                'password' => Hash::make('password'),
+                'is_active' => true,
+            ]
+        );
+        if (!$superAdmin->hasRole('Super Admin')) {
+            $superAdmin->assignRole('Super Admin');
+        }
 
         // Create Branch Manager
-        $branchManager = User::create([
-            'name' => 'Branch Manager',
-            'email' => 'manager@inventory.com',
-            'password' => Hash::make('password'),
-            'branch_id' => $mainBranch->id,
-            'is_active' => true,
-        ]);
-        $branchManager->assignRole('Branch Manager');
+        $branchManager = User::firstOrCreate(
+            ['email' => 'manager@inventory.com'],
+            [
+                'name' => 'Branch Manager',
+                'password' => Hash::make('password'),
+                'branch_id' => $mainBranch->id,
+                'is_active' => true,
+            ]
+        );
+        if (!$branchManager->hasRole('Branch Manager')) {
+            $branchManager->assignRole('Branch Manager');
+        }
 
         // Create Inventory Officer
-        $inventoryOfficer = User::create([
-            'name' => 'Inventory Officer',
-            'email' => 'inventory@inventory.com',
-            'password' => Hash::make('password'),
-            'branch_id' => $mainBranch->id,
-            'store_id' => $mainWarehouse->id,
-            'is_active' => true,
-        ]);
-        $inventoryOfficer->assignRole('Inventory Officer');
+        $inventoryOfficer = User::firstOrCreate(
+            ['email' => 'inventory@inventory.com'],
+            [
+                'name' => 'Inventory Officer',
+                'password' => Hash::make('password'),
+                'branch_id' => $mainBranch->id,
+                'store_id' => $mainWarehouse->id,
+                'is_active' => true,
+            ]
+        );
+        if (!$inventoryOfficer->hasRole('Inventory Officer')) {
+            $inventoryOfficer->assignRole('Inventory Officer');
+        }
 
         // Create Cashier
-        $cashier = User::create([
-            'name' => 'Cashier',
-            'email' => 'cashier@inventory.com',
-            'password' => Hash::make('password'),
-            'branch_id' => $mainBranch->id,
-            'store_id' => $retailStore->id,
-            'is_active' => true,
-        ]);
-        $cashier->assignRole('Cashier');
+        $cashier = User::firstOrCreate(
+            ['email' => 'cashier@inventory.com'],
+            [
+                'name' => 'Cashier',
+                'password' => Hash::make('password'),
+                'branch_id' => $mainBranch->id,
+                'store_id' => $retailStore->id,
+                'is_active' => true,
+            ]
+        );
+        if (!$cashier->hasRole('Cashier')) {
+            $cashier->assignRole('Cashier');
+        }
 
         // Create Units of Measurement
         $units = [
@@ -99,18 +121,27 @@ class InitialDataSeeder extends Seeder
         ];
 
         foreach ($units as $unit) {
-            Unit::create($unit);
+            Unit::firstOrCreate(
+                ['short_name' => $unit['short_name']],
+                $unit
+            );
         }
 
         // Update base_unit_id for derived units
         $kg = Unit::where('short_name', 'kg')->first();
-        Unit::where('short_name', 'g')->update(['base_unit_id' => $kg->id]);
+        if ($kg) {
+            Unit::where('short_name', 'g')->update(['base_unit_id' => $kg->id]);
+        }
 
         $liter = Unit::where('short_name', 'L')->first();
-        Unit::where('short_name', 'ml')->update(['base_unit_id' => $liter->id]);
+        if ($liter) {
+            Unit::where('short_name', 'ml')->update(['base_unit_id' => $liter->id]);
+        }
 
         $piece = Unit::where('short_name', 'pcs')->first();
-        Unit::where('short_name', 'doz')->update(['base_unit_id' => $piece->id]);
+        if ($piece) {
+            Unit::where('short_name', 'doz')->update(['base_unit_id' => $piece->id]);
+        }
 
         // Create Product Categories
         $categories = [
@@ -122,21 +153,30 @@ class InitialDataSeeder extends Seeder
         ];
 
         foreach ($categories as $category) {
-            ProductCategory::create($category);
+            ProductCategory::firstOrCreate(
+                ['code' => $category['code']],
+                $category
+            );
         }
 
         // Create subcategories
         $electronics = ProductCategory::where('code', 'CAT001')->first();
-        ProductCategory::create([
-            'code' => 'CAT001-01',
-            'name' => 'Mobile Phones',
-            'parent_id' => $electronics->id,
-        ]);
-        ProductCategory::create([
-            'code' => 'CAT001-02',
-            'name' => 'Laptops',
-            'parent_id' => $electronics->id,
-        ]);
+        if ($electronics) {
+            ProductCategory::firstOrCreate(
+                ['code' => 'CAT001-01'],
+                [
+                    'name' => 'Mobile Phones',
+                    'parent_id' => $electronics->id,
+                ]
+            );
+            ProductCategory::firstOrCreate(
+                ['code' => 'CAT001-02'],
+                [
+                    'name' => 'Laptops',
+                    'parent_id' => $electronics->id,
+                ]
+            );
+        }
 
         $this->command->info('Initial data seeded successfully!');
         $this->command->info('Super Admin: admin@inventory.com / password');

@@ -28,6 +28,23 @@ return [
 
     ],
 
+    /*
+     * The default guard to use for permissions and roles.
+     * This should match your primary authentication guard.
+     */
+
+    'default_guard' => 'sanctum',
+
+    /*
+     * When using the "HasPermissions" and "HasRoles" traits from this package,
+     * we need to know which guards are available for checking permissions.
+     */
+
+    'guards' => [
+        'web' => 'web',
+        'sanctum' => 'sanctum',
+    ],
+
     'table_names' => [
 
         /*

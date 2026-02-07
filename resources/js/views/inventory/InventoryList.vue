@@ -219,7 +219,7 @@
               <v-col cols="12" md="3">
                 <v-select
                   v-model="transferFilters.status"
-                  :items="['pending', 'approved', 'completed', 'cancelled']"
+                  :items="['draft', 'pending', 'in_transit', 'received', 'cancelled']"
                   label="Status"
                   variant="outlined"
                   density="compact"
@@ -259,6 +259,37 @@
               </template>
               <template v-slot:item.initiated_by="{ item }">
                 {{ item.initiated_by?.name || 'N/A' }}
+              </template>
+              <template v-slot:item.actions="{ item }">
+                <v-btn
+                  icon
+                  size="small"
+                  color="primary"
+                  @click="viewTransferDetails(item)"
+                  title="View Details"
+                >
+                  <v-icon>mdi-eye</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="small"
+                  color="success"
+                  @click="approveTransfer(item)"
+                  title="Approve Transfer"
+                  v-if="item.status === 'pending' && authStore.hasPermission('approve_stock_transfers')"
+                >
+                  <v-icon>mdi-check-circle</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="small"
+                  color="info"
+                  @click="receiveTransfer(item)"
+                  title="Receive Transfer"
+                  v-if="item.status === 'in_transit' && authStore.hasPermission('receive_stock_transfers')"
+                >
+                  <v-icon>mdi-package-variant</v-icon>
+                </v-btn>
               </template>
             </v-data-table>
           </v-card-text>
@@ -322,11 +353,85 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Transfer Details Dialog -->
+    <v-dialog v-model="detailsDialog" max-width="800px">
+      <v-card>
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>Stock Transfer Details</span>
+          <v-chip :color="getTransferStatusColor(selectedTransfer?.status)" size="small">
+            {{ selectedTransfer?.status }}
+          </v-chip>
+        </v-card-title>
+        <v-card-text>
+          <v-row v-if="selectedTransfer">
+            <v-col cols="12" md="6">
+              <div class="mb-2"><strong>Transfer Number:</strong> {{ selectedTransfer.transfer_number }}</div>
+              <div class="mb-2"><strong>From Store:</strong> {{ selectedTransfer.from_store?.name }}</div>
+              <div class="mb-2"><strong>To Store:</strong> {{ selectedTransfer.to_store?.name }}</div>
+              <div class="mb-2"><strong>Transfer Date:</strong> {{ new Date(selectedTransfer.transfer_date).toLocaleDateString() }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="mb-2"><strong>Initiated By:</strong> {{ selectedTransfer.initiated_by?.name }}</div>
+              <div class="mb-2" v-if="selectedTransfer.approved_by">
+                <strong>Approved By:</strong> {{ selectedTransfer.approved_by?.name }}
+              </div>
+              <div class="mb-2" v-if="selectedTransfer.received_by">
+                <strong>Received By:</strong> {{ selectedTransfer.received_by?.name }}
+              </div>
+              <div class="mb-2" v-if="selectedTransfer.notes">
+                <strong>Notes:</strong> {{ selectedTransfer.notes }}
+              </div>
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4"></v-divider>
+
+          <h3 class="mb-3">Transfer Items</h3>
+          <v-data-table
+            :headers="detailsHeaders"
+            :items="transferItems"
+            :loading="loadingDetails"
+            density="compact"
+          >
+            <template v-slot:item.line_total="{ item }">
+              ₦{{ item.line_total?.toLocaleString() }}
+            </template>
+          </v-data-table>
+
+          <v-row class="mt-4">
+            <v-col cols="12" class="text-right">
+              <h3>Total: ₦{{ transferTotal.toLocaleString() }}</h3>
+            </v-col>
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn @click="detailsDialog = false">Close</v-btn>
+          <v-btn
+            color="success"
+            @click="approveFromDetails"
+            v-if="selectedTransfer?.status === 'pending' && authStore.hasPermission('approve_stock_transfers')"
+          >
+            <v-icon left>mdi-check-circle</v-icon>
+            Approve Transfer
+          </v-btn>
+          <v-btn
+            color="info"
+            @click="receiveFromDetails"
+            v-if="selectedTransfer?.status === 'in_transit' && authStore.hasPermission('receive_stock_transfers')"
+          >
+            <v-icon left>mdi-package-variant</v-icon>
+            Receive Transfer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 
@@ -338,6 +443,8 @@ const loadingLowStock = ref(false);
 const loadingTransfers = ref(false);
 const savingTransfer = ref(false);
 const transferDialog = ref(false);
+const detailsDialog = ref(false);
+const loadingDetails = ref(false);
 
 const stores = ref([]);
 const categories = ref([]);
@@ -346,6 +453,8 @@ const stockLevels = ref([]);
 const stockLedger = ref([]);
 const lowStockItems = ref([]);
 const transfers = ref([]);
+const selectedTransfer = ref(null);
+const transferItems = ref([]);
 
 const filters = ref({ store_id: null, category_id: null, search: '' });
 const ledgerFilters = ref({ store_id: null, product_id: null, date_from: '', date_to: '' });
@@ -387,6 +496,7 @@ const transferHeaders = [
   { title: 'Status', key: 'status' },
   { title: 'Initiated By', key: 'initiated_by' },
   { title: 'Notes', key: 'notes' },
+  { title: 'Actions', key: 'actions', sortable: false },
 ];
 
 const lowStockHeaders = [
@@ -397,7 +507,20 @@ const lowStockHeaders = [
   { title: 'Reorder Quantity', key: 'reorder_quantity' },
 ];
 
+const detailsHeaders = [
+  { title: 'Product', key: 'product_name' },
+  { title: 'SKU', key: 'product_sku' },
+  { title: 'Quantity', key: 'quantity' },
+  { title: 'Unit', key: 'unit_name' },
+  { title: 'Unit Cost', key: 'unit_cost' },
+  { title: 'Line Total', key: 'line_total' },
+];
+
 const formatNumber = (num) => new Intl.NumberFormat('en-NG').format(num);
+
+const transferTotal = computed(() => {
+  return transferItems.value.reduce((sum, item) => sum + (item.line_total || 0), 0);
+});
 
 const getStockColor = (item) => {
   if (item.current_quantity <= item.reorder_level) return 'error';
@@ -559,6 +682,88 @@ const createTransfer = async () => {
     alert('Failed to create transfer');
   } finally {
     savingTransfer.value = false;
+  }
+};
+
+const approveTransfer = async (transfer) => {
+  if (!confirm(`Approve stock transfer ${transfer.transfer_number}?`)) return;
+
+  try {
+    const response = await axios.post(`/api/inventory/stock-transfers/${transfer.id}/approve`, {});
+    alert(response.data.message);
+    loadTransfers(); // Reload the list
+  } catch (error) {
+    console.error('Failed to approve transfer:', error);
+    alert(error.response?.data?.message || 'Failed to approve transfer');
+  }
+};
+
+const receiveTransfer = async (transfer) => {
+  if (!confirm(`Mark stock transfer ${transfer.transfer_number} as received?`)) return;
+
+  try {
+    const response = await axios.post(`/api/inventory/stock-transfers/${transfer.id}/receive`, {
+      received_date: new Date().toISOString().split('T')[0],
+      notes: null
+    });
+    alert(response.data.message);
+    loadTransfers(); // Reload the list
+  } catch (error) {
+    console.error('Failed to receive transfer:', error);
+    alert(error.response?.data?.message || 'Failed to receive transfer');
+  }
+};
+
+const viewTransferDetails = async (transfer) => {
+  loadingDetails.value = true;
+  detailsDialog.value = true;
+  selectedTransfer.value = transfer;
+  transferItems.value = [];
+
+  try {
+    const response = await axios.get(`/api/inventory/stock-transfers/${transfer.id}`);
+    selectedTransfer.value = response.data.transfer;
+    transferItems.value = response.data.items;
+  } catch (error) {
+    console.error('Failed to load transfer details:', error);
+    alert('Failed to load transfer details');
+  } finally {
+    loadingDetails.value = false;
+  }
+};
+
+const approveFromDetails = async () => {
+  if (!selectedTransfer.value) return;
+
+  if (!confirm(`Approve stock transfer ${selectedTransfer.value.transfer_number}?`)) return;
+
+  try {
+    const response = await axios.post(`/api/inventory/stock-transfers/${selectedTransfer.value.id}/approve`, {});
+    alert(response.data.message);
+    detailsDialog.value = false;
+    loadTransfers(); // Reload the list
+  } catch (error) {
+    console.error('Failed to approve transfer:', error);
+    alert(error.response?.data?.message || 'Failed to approve transfer');
+  }
+};
+
+const receiveFromDetails = async () => {
+  if (!selectedTransfer.value) return;
+
+  if (!confirm(`Mark stock transfer ${selectedTransfer.value.transfer_number} as received?`)) return;
+
+  try {
+    const response = await axios.post(`/api/inventory/stock-transfers/${selectedTransfer.value.id}/receive`, {
+      received_date: new Date().toISOString().split('T')[0],
+      notes: null
+    });
+    alert(response.data.message);
+    detailsDialog.value = false;
+    loadTransfers(); // Reload the list
+  } catch (error) {
+    console.error('Failed to receive transfer:', error);
+    alert(error.response?.data?.message || 'Failed to receive transfer');
   }
 };
 
