@@ -258,7 +258,21 @@ class ReportController extends Controller
 
         $sales = $salesQuery->get();
         $totalRevenue = $sales->sum('total_amount');
-        $totalCOGS = $sales->sum('cost_of_goods_sold');
+        $totalCOGS = 0;
+
+        if ($sales->isNotEmpty()) {
+            $ledgerQuery = StockLedger::where('reference_type', 'sale')
+                ->where('transaction_type', 'issue')
+                ->whereIn('reference_id', $sales->pluck('id'));
+
+            if (!empty($validated['store_id'])) {
+                $ledgerQuery->where('store_id', $validated['store_id']);
+            }
+
+            $totalCOGS = (float) $ledgerQuery
+                ->selectRaw('SUM(ABS(COALESCE(base_quantity_change, quantity)) * unit_cost) as total_cogs')
+                ->value('total_cogs');
+        }
 
         // Order stats
         $ordersQuery = Order::whereBetween('created_at', $dateRange);
