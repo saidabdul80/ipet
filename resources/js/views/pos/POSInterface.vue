@@ -48,7 +48,25 @@
         </v-card>
 
         <!-- Quick Product Grid -->
-        <v-card>
+        <v-card v-if="isMobile && quickCollapsed && lastQuickSelected" class="mb-4">
+          <v-card-title class="d-flex align-center justify-space-between">
+            <span>Quick Select</span>
+            <v-btn variant="text" size="small" @click="quickCollapsed = false">Change</v-btn>
+          </v-card-title>
+          <v-card-text class="d-flex align-center justify-space-between">
+            <div>
+              <div class="text-subtitle-2">{{ lastQuickSelected.name }}</div>
+              <div class="text-caption text-grey">
+                ₦{{ formatNumber(lastQuickSelected.selling_price) }}
+              </div>
+            </div>
+            <v-chip size="small" color="primary">
+              Qty: {{ cart.find(item => item.id === lastQuickSelected.id)?.quantity || 0 }}
+            </v-chip>
+          </v-card-text>
+        </v-card>
+
+        <v-card v-else>
           <v-card-title>Quick Select</v-card-title>
           <v-card-text>
             <v-row>
@@ -237,9 +255,12 @@ import { useToast } from '@/composables/useToast';
 import axios from 'axios';
 import SaleReceipt from '@/components/receipts/SaleReceipt.vue';
 import SplitPaymentDialog from '@/components/pos/SplitPaymentDialog.vue';
+import { useDisplay } from 'vuetify';
 
 const authStore = useAuthStore();
 const { success, handleError } = useToast();
+const { smAndDown } = useDisplay();
+const isMobile = computed(() => smAndDown.value);
 
 const searchQuery = ref('');
 const searchResults = ref([]);
@@ -256,6 +277,8 @@ const showReceipt = ref(false);
 const completedSale = ref(null);
 const showSplitPayment = ref(false);
 const splitPayments = ref([]);
+const quickCollapsed = ref(false);
+const lastQuickSelected = ref(null);
 
 const paymentMethods = [
   { title: 'Cash', value: 'cash' },
@@ -345,6 +368,10 @@ const addToCart = async (product) => {
     });
     console.log(`Added ${product.name} to cart at ₦${finalPrice} (${priceSource})`);
   }
+  lastQuickSelected.value = product;
+  if (isMobile.value) {
+    quickCollapsed.value = true;
+  }
   searchQuery.value = '';
   searchResults.value = [];
 };
@@ -363,6 +390,8 @@ const clearCart = () => {
   cart.value = [];
   discountAmount.value = 0;
   taxAmount.value = 0;
+  quickCollapsed.value = false;
+  lastQuickSelected.value = null;
   // Reset to walk-in customer
   if (walkInCustomer.value) {
     selectedCustomer.value = walkInCustomer.value.id;
@@ -487,6 +516,13 @@ watch(selectedCustomer, async (newCustomerId, oldCustomerId) => {
   }
 });
 
+watch(cart, (items) => {
+  if (!items.length) {
+    quickCollapsed.value = false;
+    lastQuickSelected.value = null;
+  }
+});
+
 onMounted(async () => {
   // Load quick products
   const productsRes = await axios.get('/api/products', { params: { per_page: 8 } });
@@ -509,4 +545,3 @@ onMounted(async () => {
   cursor: pointer;
 }
 </style>
-

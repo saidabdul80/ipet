@@ -4,8 +4,9 @@
     <v-navigation-drawer
       v-model="drawer"
       app
-      :rail="rail"
-      permanent
+      :rail="rail && !isMobile"
+      :permanent="!isMobile"
+      :temporary="isMobile"
       class="sidebar-gradient"
       :width="280"
     >
@@ -26,6 +27,7 @@
         
         </div>
         <v-btn
+          v-if="!isMobile"
           icon
           size="small"
           variant="text"
@@ -109,6 +111,7 @@
       class="app-bar-glass"
       height="70"
     >
+      <v-app-bar-nav-icon v-if="isMobile" @click="drawer = !drawer" />
       <v-app-bar-title class="d-flex align-center">
         <v-icon class="mr-2" color="primary">{{ currentPageIcon }}</v-icon>
         <span class="text-h6 font-weight-bold">{{ pageTitle }}</span>
@@ -215,15 +218,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAppSettingsStore } from '@/stores/appSettings';
+import { useDisplay } from 'vuetify';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const appSettingsStore = useAppSettingsStore();
+const { smAndDown } = useDisplay();
+
+const isMobile = computed(() => smAndDown.value);
 
 const drawer = ref(true);
 const rail = ref(false);
@@ -355,6 +362,13 @@ const logout = async () => {
 onMounted(async () => {
   await appSettingsStore.loadSettings();
   appSettingsStore.updateDocumentTitle(pageTitle.value);
+});
+
+watch(isMobile, (mobile) => {
+  if (mobile) {
+    rail.value = false;
+    drawer.value = false;
+  }
 });
 </script>
 
@@ -523,4 +537,3 @@ onMounted(async () => {
   }
 }
 </style>
-

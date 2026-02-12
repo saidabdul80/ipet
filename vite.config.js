@@ -21,6 +21,10 @@ export default defineConfig({
         vuetify({ autoImport: true }),
         tailwindcss(),
     ],
+    build: {
+        manifest: true,  // Creates manifest.json
+        outDir: 'public/build',  // Output directory
+    },
     resolve: {
         alias: {
             '@': '/resources/js',
