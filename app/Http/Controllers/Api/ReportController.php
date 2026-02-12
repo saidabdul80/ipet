@@ -32,8 +32,11 @@ class ReportController extends Controller
             'group_by' => 'nullable|in:day,week,month,product,customer,cashier',
         ]);
 
+        $dateFrom = Carbon::parse($validated['date_from'])->startOfDay();
+        $dateTo = Carbon::parse($validated['date_to'])->endOfDay();
+
         $query = Sale::with(['customer', 'store', 'items.product', 'createdBy'])
-            ->whereBetween('sale_date', [$validated['date_from'], $validated['date_to']]);
+            ->whereBetween('sale_date', [$dateFrom, $dateTo]);
 
         // Apply filters
         if (!empty($validated['store_id'])) {
@@ -82,9 +85,9 @@ class ReportController extends Controller
             'sales' => $sales,
             'grouped_data' => $groupedData,
             'period' => [
-                'from' => $validated['date_from'],
-                'to' => $validated['date_to'],
-            ],
+            'from' => $dateFrom->toDateString(),
+            'to' => $dateTo->toDateString(),
+        ],
         ]);
     }
 
@@ -97,11 +100,11 @@ class ReportController extends Controller
             'store_id' => 'required|exists:stores,id',
             'category_id' => 'nullable|exists:product_categories,id',
         ]);
-        $validated['low_stock_only'] = $request->query('low_stock_only', false);
+        $validated['low_stock_only'] = $request->boolean('low_stock_only');
         // Get current stock levels
         $stockLevels = StockLedger::select('product_id', 'product_variant_id', 'store_id')
-            ->selectRaw('SUM(quantity) as current_quantity')
-            ->selectRaw('SUM(quantity * unit_cost) / NULLIF(SUM(quantity), 0) as avg_cost')
+            ->selectRaw('SUM(COALESCE(base_quantity_change, quantity)) as current_quantity')
+            ->selectRaw('SUM(COALESCE(base_quantity_change, quantity) * unit_cost) / NULLIF(SUM(COALESCE(base_quantity_change, quantity)), 0) as avg_cost')
             ->where('store_id', $validated['store_id'])
             ->groupBy('product_id', 'product_variant_id', 'store_id')
             ->having('current_quantity', '>', 0)
@@ -167,7 +170,10 @@ class ReportController extends Controller
             'group_by' => 'nullable|in:day,week,month,product,category',
         ]);
 
-        $query = Sale::whereBetween('sale_date', [$validated['date_from'], $validated['date_to']]);
+        $dateFrom = Carbon::parse($validated['date_from'])->startOfDay();
+        $dateTo = Carbon::parse($validated['date_to'])->endOfDay();
+
+        $query = Sale::whereBetween('sale_date', [$dateFrom, $dateTo]);
 
         // Apply filters
         if (!empty($validated['store_id'])) {
@@ -191,7 +197,20 @@ class ReportController extends Controller
         $sales = $query->get();
 
         $totalRevenue = $sales->sum('total_amount');
-        $totalCOGS = $sales->sum('cost_of_goods_sold');
+        $totalCOGS = 0;
+        if ($sales->isNotEmpty()) {
+            $ledgerQuery = StockLedger::where('reference_type', 'sale')
+                ->where('transaction_type', 'issue')
+                ->whereIn('reference_id', $sales->pluck('id'));
+
+            if (!empty($validated['store_id'])) {
+                $ledgerQuery->where('store_id', $validated['store_id']);
+            }
+
+            $totalCOGS = (float) $ledgerQuery
+                ->selectRaw('SUM(ABS(COALESCE(base_quantity_change, quantity)) * unit_cost) as total_cogs')
+                ->value('total_cogs');
+        }
         $grossProfit = $totalRevenue - $totalCOGS;
         $grossMargin = $totalRevenue > 0 ? ($grossProfit / $totalRevenue) * 100 : 0;
 
@@ -215,9 +234,9 @@ class ReportController extends Controller
             'summary' => $summary,
             'grouped_data' => $groupedData,
             'period' => [
-                'from' => $validated['date_from'],
-                'to' => $validated['date_to'],
-            ],
+            'from' => $dateFrom->toDateString(),
+            'to' => $dateTo->toDateString(),
+        ],
         ]);
     }
 
