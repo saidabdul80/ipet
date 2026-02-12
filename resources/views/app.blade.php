@@ -12,16 +12,9 @@
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
 
     <!-- Scripts -->
-    @if(file_exists(public_path('build/manifest.json')))
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @else
-        {{-- Fallback to compiled assets --}}
-        <link rel="stylesheet" href="{{ asset('build/assets/app.css') }}">
-        <script type="module" src="{{ asset('build/assets/app.js') }}"></script>
-    @endif
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
     <div id="app"></div>
 </body>
 </html>
-
