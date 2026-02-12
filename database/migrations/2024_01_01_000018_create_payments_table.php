@@ -25,7 +25,7 @@ return new class extends Migration
             $table->foreignId('received_by')->constrained('users');
             $table->foreignId('verified_by')->nullable()->constrained('users');
             $table->timestamp('verified_at')->nullable();
-            $table->timestamp('payment_date');
+            $table->timestamp('payment_date')->nullable();
             $table->timestamps();
             
             $table->index(['payable_type', 'payable_id']);

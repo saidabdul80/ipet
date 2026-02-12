@@ -24,6 +24,9 @@ use App\Policies\SupplierPolicy;
 use App\Policies\PurchaseOrderPolicy;
 use App\Policies\WalletTransactionPolicy;
 use App\Policies\StockTransferPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,5 +65,10 @@ class AppServiceProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+
+        // Ensure the API rate limiter exists even when routes are cached.
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

@@ -28,7 +28,7 @@ return new class extends Migration
             $table->foreignId('voided_by')->nullable()->constrained('users');
             $table->timestamp('voided_at')->nullable();
             $table->text('void_reason')->nullable();
-            $table->timestamp('sale_date');
+            $table->timestamp('sale_date')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
