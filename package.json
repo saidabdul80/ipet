@@ -3,6 +3,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "build:cpanel": "ROLLUP_NO_NATIVE=1 vite build",
         "dev": "vite"
     },
     "devDependencies": {
