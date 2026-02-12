@@ -31,7 +31,7 @@
         ></v-select>
       </v-col>
       <v-col cols="12" md="2">
-        <v-select
+        <StoreSelect
           v-model="filters.store_id"
           :items="stores"
           item-title="name"
@@ -41,7 +41,8 @@
           density="compact"
           clearable
           @update:model-value="loadPurchaseOrders"
-        ></v-select>
+          @created="store => stores.push(store)"
+        />
       </v-col>
       <v-col cols="12" md="3" class="text-right">
         <v-btn color="primary" @click="openCreateDialog" v-if="authStore.hasPermission('create_purchase_orders')">
@@ -237,7 +238,7 @@
           <v-form ref="poForm">
             <v-row>
               <v-col cols="12" md="6">
-                <v-select
+                <SupplierSelect
                   v-model="poData.supplier_id"
                   :items="suppliers"
                   item-title="name"
@@ -245,10 +246,11 @@
                   label="Supplier *"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-select>
+                  @created="supplier => suppliers.push(supplier)"
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-select
+                <StoreSelect
                   v-model="poData.store_id"
                   :items="stores"
                   item-title="name"
@@ -256,24 +258,23 @@
                   label="Store *"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
+                <DatePickerField
                   v-model="poData.order_date"
                   label="Order Date *"
-                  type="date"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
+                <DatePickerField
                   v-model="poData.expected_date"
                   label="Expected Delivery Date"
-                  type="date"
                   variant="outlined"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12">
                 <v-textarea
@@ -301,7 +302,7 @@
 
             <v-row v-for="(item, index) in poData.items" :key="index" class="mb-2">
               <v-col cols="12" md="4">
-                <v-autocomplete
+                <ProductSelect
                   v-model="item.product_id"
                   :items="products"
                   item-title="name"
@@ -309,9 +310,11 @@
                   label="Product *"
                   variant="outlined"
                   density="compact"
+                  control="autocomplete"
                   :rules="[v => !!v || 'Required']"
                   @update:model-value="onProductChange(item, index)"
-                ></v-autocomplete>
+                  @created="product => products.push(product)"
+                />
               </v-col>
               <v-col cols="12" md="2">
                 <v-text-field
@@ -391,13 +394,12 @@
           <v-form ref="receiveForm">
             <v-row>
               <v-col cols="12" md="6">
-                <v-text-field
+                <DatePickerField
                   v-model="receiveData.received_date"
                   label="Received Date *"
-                  type="date"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12">
                 <v-textarea
@@ -458,7 +460,7 @@
           <v-form ref="editForm">
             <v-row>
               <v-col cols="12" md="6">
-                <v-select
+                <SupplierSelect
                   v-model="editData.supplier_id"
                   :items="suppliers"
                   item-title="name"
@@ -466,10 +468,11 @@
                   label="Supplier *"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-select>
+                  @created="supplier => suppliers.push(supplier)"
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-select
+                <StoreSelect
                   v-model="editData.store_id"
                   :items="stores"
                   item-title="name"
@@ -477,24 +480,23 @@
                   label="Store *"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
+                <DatePickerField
                   v-model="editData.order_date"
                   label="Order Date *"
-                  type="date"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
+                <DatePickerField
                   v-model="editData.expected_date"
                   label="Expected Delivery Date"
-                  type="date"
                   variant="outlined"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12">
                 <v-textarea
@@ -522,7 +524,7 @@
 
             <v-row v-for="(item, index) in editData.items" :key="index" class="mb-2">
               <v-col cols="12" md="4">
-                <v-autocomplete
+                <ProductSelect
                   v-model="item.product_id"
                   :items="products"
                   item-title="name"
@@ -530,9 +532,11 @@
                   label="Product *"
                   variant="outlined"
                   density="compact"
+                  control="autocomplete"
                   :rules="[v => !!v || 'Required']"
                   @update:model-value="onProductChange(item, index)"
-                ></v-autocomplete>
+                  @created="product => products.push(product)"
+                />
               </v-col>
               <v-col cols="12" md="2">
                 <v-text-field
@@ -610,8 +614,14 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
+import SupplierSelect from '@/components/selects/SupplierSelect.vue';
+import ProductSelect from '@/components/selects/ProductSelect.vue';
+import DatePickerField from '@/components/inputs/DatePickerField.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const loading = ref(false);
 const saving = ref(false);
 const receiving = ref(false);
@@ -936,17 +946,17 @@ const updatePO = async () => {
 };
 
 const cancelPO = async (po) => {
-  if (confirm(`Are you sure you want to cancel purchase order ${po.po_number}?`)) {
-    try {
-      await axios.post(`/api/purchase-orders/${po.id}/cancel`, {});
-      loadPurchaseOrders();
-      if (detailDialog.value) detailDialog.value = false;
-      alert('Purchase order cancelled successfully');
-    } catch (error) {
-      console.error('Failed to cancel PO:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to cancel PO';
-      alert(errorMsg);
-    }
+  const confirmed = await confirm(`Are you sure you want to cancel purchase order ${po.po_number}?`);
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/purchase-orders/${po.id}/cancel`, {});
+    loadPurchaseOrders();
+    if (detailDialog.value) detailDialog.value = false;
+    alert('Purchase order cancelled successfully');
+  } catch (error) {
+    console.error('Failed to cancel PO:', error);
+    const errorMsg = error.response?.data?.message || 'Failed to cancel PO';
+    alert(errorMsg);
   }
 };
 
@@ -1018,17 +1028,17 @@ const printPO = (po) => {
 };
 
 const approvePO = async (po) => {
-  if (confirm(`Approve purchase order ${po.po_number}?`)) {
-    try {
-      await axios.post(`/api/purchase-orders/${po.id}/approve`, {});
-      loadPurchaseOrders();
-      if (detailDialog.value) detailDialog.value = false;
-      alert('Purchase order approved successfully');
-    } catch (error) {
-      console.error('Failed to approve PO:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to approve PO';
-      alert(errorMsg);
-    }
+  const confirmed = await confirm(`Approve purchase order ${po.po_number}?`);
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/purchase-orders/${po.id}/approve`, {});
+    loadPurchaseOrders();
+    if (detailDialog.value) detailDialog.value = false;
+    alert('Purchase order approved successfully');
+  } catch (error) {
+    console.error('Failed to approve PO:', error);
+    const errorMsg = error.response?.data?.message || 'Failed to approve PO';
+    alert(errorMsg);
   }
 };
 
@@ -1092,4 +1102,3 @@ onMounted(async () => {
   cursor: pointer;
 }
 </style>
-

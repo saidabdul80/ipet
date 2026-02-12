@@ -73,7 +73,7 @@ class PurchaseOrderController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'store_id' => 'required|exists:stores,id',
             'order_date' => 'required|date',
-            'expected_delivery_date' => 'nullable|date|after:order_date',
+            'expected_delivery_date' => 'nullable|date',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.product_variant_id' => 'nullable|exists:product_variants,id',

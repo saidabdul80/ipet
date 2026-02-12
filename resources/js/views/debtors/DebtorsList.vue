@@ -290,6 +290,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -301,6 +302,7 @@ const paymentDialog = ref(false);
 const showAgingReport = ref(false);
 const selectedDebtor = ref(null);
 const selectedSale = ref(null);
+const { alert } = useDialog();
 
 const filters = ref({
   search: '',
@@ -418,5 +420,4 @@ onMounted(() => {
   loadData();
 });
 </script>
-
 

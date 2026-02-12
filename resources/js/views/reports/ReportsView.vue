@@ -19,25 +19,23 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="3">
-                <v-text-field
+                <DatePickerField
                   v-model="salesFilters.date_from"
                   label="From Date"
-                  type="date"
                   variant="outlined"
                   density="compact"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-text-field
+                <DatePickerField
                   v-model="salesFilters.date_to"
                   label="To Date"
-                  type="date"
                   variant="outlined"
                   density="compact"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-select
+                <StoreSelect
                   v-model="salesFilters.store_id"
                   :items="stores"
                   item-title="name"
@@ -46,7 +44,8 @@
                   variant="outlined"
                   density="compact"
                   clearable
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="3">
                 <v-btn color="primary" @click="loadSalesReport" :loading="loadingSales">
@@ -119,7 +118,7 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="4">
-                <v-select
+                <StoreSelect
                   v-model="inventoryFilters.store_id"
                   :items="stores"
                   item-title="name"
@@ -127,10 +126,11 @@
                   label="Store *"
                   variant="outlined"
                   density="compact"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-select
+                <CategorySelect
                   v-model="inventoryFilters.category_id"
                   :items="categories"
                   item-title="name"
@@ -139,7 +139,8 @@
                   variant="outlined"
                   density="compact"
                   clearable
-                ></v-select>
+                  @created="category => categories.push(category)"
+                />
               </v-col>
               <v-col cols="12" md="2">
                 <v-switch
@@ -213,25 +214,23 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="3">
-                <v-text-field
+                <DatePickerField
                   v-model="profitFilters.date_from"
                   label="From Date"
-                  type="date"
                   variant="outlined"
                   density="compact"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-text-field
+                <DatePickerField
                   v-model="profitFilters.date_to"
                   label="To Date"
-                  type="date"
                   variant="outlined"
                   density="compact"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-select
+                <StoreSelect
                   v-model="profitFilters.store_id"
                   :items="stores"
                   item-title="name"
@@ -240,7 +239,8 @@
                   variant="outlined"
                   density="compact"
                   clearable
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="3">
                 <v-btn color="primary" @click="loadProfitabilityReport" :loading="loadingProfit">
@@ -294,10 +294,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
+import CategorySelect from '@/components/selects/CategorySelect.vue';
+import DatePickerField from '@/components/inputs/DatePickerField.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const activeTab = ref('sales');
 const stores = ref([]);
 const categories = ref([]);
+const { alert } = useDialog();
 
 const loadingSales = ref(false);
 const loadingInventory = ref(false);
@@ -404,4 +409,3 @@ onMounted(async () => {
   categories.value = categoriesRes.data.data || categoriesRes.data;
 });
 </script>
-

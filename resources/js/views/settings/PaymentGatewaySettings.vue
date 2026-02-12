@@ -177,12 +177,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const gateways = ref([]);
 const dialog = ref(false);
 const editMode = ref(false);
 const valid = ref(false);
 const saving = ref(false);
+const { alert } = useDialog();
 const form = ref(null);
 
 const formData = ref({
@@ -326,4 +328,3 @@ onMounted(() => {
   background: linear-gradient(135deg, #f5f5f5 0%, #e3f2fd 100%);
 }
 </style>
-

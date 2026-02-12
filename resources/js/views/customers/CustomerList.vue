@@ -215,14 +215,15 @@
         <v-card-text>
           <v-row class="mb-4">
             <v-col cols="12" md="6">
-              <v-select
+              <ProductSelect
                 v-model="pricingData.product_id"
                 :items="products"
                 item-title="name"
                 item-value="id"
                 label="Product *"
                 variant="outlined"
-              ></v-select>
+                @created="product => products.push(product)"
+              />
             </v-col>
             <v-col cols="12" md="4">
               <v-text-field
@@ -282,8 +283,11 @@ import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import axios from 'axios';
+import ProductSelect from '@/components/selects/ProductSelect.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const { success, handleError } = useToast();
+const { confirm } = useDialog();
 
 const authStore = useAuthStore();
 const loading = ref(false);
@@ -446,7 +450,8 @@ const addPricing = async () => {
 };
 
 const removePricing = async (pricing) => {
-  if (confirm('Remove this special pricing?')) {
+  const confirmed = await confirm('Remove this special pricing?');
+  if (confirmed) {
     try {
       await axios.delete(`/api/customers/${selectedCustomer.value.id}/pricing/${pricing.id}`);
       const response = await axios.get(`/api/customers/${selectedCustomer.value.id}/pricing`);
@@ -464,4 +469,3 @@ onMounted(async () => {
   loadCustomers();
 });
 </script>
-

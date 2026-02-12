@@ -176,8 +176,10 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const loading = ref(false);
 const detailDialog = ref(false);
 const orders = ref([]);
@@ -233,15 +235,15 @@ const viewOrderDetails = async (order) => {
 };
 
 const cancelOrder = async (order) => {
-  if (confirm('Are you sure you want to cancel this order?')) {
-    try {
-      await axios.post(`/api/orders/${order.id}/cancel`);
-      loadOrders();
-      alert('Order cancelled successfully');
-    } catch (error) {
-      console.error('Failed to cancel order:', error);
-      alert('Failed to cancel order');
-    }
+  const confirmed = await confirm('Are you sure you want to cancel this order?');
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/orders/${order.id}/cancel`);
+    loadOrders();
+    alert('Order cancelled successfully');
+  } catch (error) {
+    console.error('Failed to cancel order:', error);
+    alert('Failed to cancel order');
   }
 };
 
@@ -249,4 +251,3 @@ onMounted(() => {
   loadOrders();
 });
 </script>
-

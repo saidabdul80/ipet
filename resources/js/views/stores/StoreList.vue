@@ -182,8 +182,10 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const loading = ref(false);
 const saving = ref(false);
 const dialog = ref(false);
@@ -273,14 +275,14 @@ const viewStore = (store) => {
 };
 
 const deleteStore = async (store) => {
-  if (confirm(`Are you sure you want to delete ${store.name}?`)) {
-    try {
-      await axios.delete(`/api/stores/${store.id}`);
-      loadStores();
-    } catch (error) {
-      console.error('Failed to delete store:', error);
-      alert('Failed to delete store');
-    }
+  const confirmed = await confirm(`Are you sure you want to delete ${store.name}?`);
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/stores/${store.id}`);
+    loadStores();
+  } catch (error) {
+    console.error('Failed to delete store:', error);
+    alert('Failed to delete store');
   }
 };
 
@@ -290,4 +292,3 @@ onMounted(async () => {
   loadStores();
 });
 </script>
-

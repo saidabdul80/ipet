@@ -122,13 +122,12 @@
               class="mt-2"
             ></v-text-field>
 
-            <v-text-field
+            <DatePickerField
               v-model="deliveryDate"
               label="Preferred Delivery Date"
-              type="date"
               variant="outlined"
               density="compact"
-            ></v-text-field>
+            />
 
             <v-textarea
               v-model="notes"
@@ -161,6 +160,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import DatePickerField from '@/components/inputs/DatePickerField.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -169,6 +170,7 @@ const cart = ref([]);
 const deliveryAddress = ref('');
 const deliveryDate = ref('');
 const notes = ref('');
+const { alert } = useDialog();
 const placing = ref(false);
 
 const total = computed(() => {
@@ -254,4 +256,3 @@ onMounted(() => {
   flex-direction: column;
 }
 </style>
-

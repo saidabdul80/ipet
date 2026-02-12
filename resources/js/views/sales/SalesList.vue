@@ -93,7 +93,7 @@
             ></v-text-field>
           </v-col>
           <v-col cols="12" md="2">
-            <v-select
+            <StoreSelect
               v-model="filters.store_id"
               :items="stores"
               item-title="name"
@@ -104,7 +104,8 @@
               clearable
               hide-details
               @update:model-value="loadSales"
-            ></v-select>
+              @created="store => stores.push(store)"
+            />
           </v-col>
           <v-col cols="12" md="2">
             <v-menu v-model="dateMenu" :close-on-content-click="false">
@@ -594,8 +595,11 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import SaleReceipt from '@/components/receipts/SaleReceipt.vue';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const loading = ref(false);
 const detailDialog = ref(false);
 const sales = ref([]);
@@ -969,15 +973,15 @@ const downloadReceipt = async (sale) => {
 };
 
 const voidSale = async (sale) => {
-  if (confirm(`Are you sure you want to void sale ${sale.invoice_number}? This action cannot be undone.`)) {
-    try {
-      await axios.post(`/api/sales/${sale.id}/void`);
-      loadSales();
-      detailDialog.value = false;
-    } catch (error) {
-      console.error('Failed to void sale:', error);
-      alert('Failed to void sale');
-    }
+  const confirmed = await confirm(`Are you sure you want to void sale ${sale.invoice_number}? This action cannot be undone.`);
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/sales/${sale.id}/void`);
+    loadSales();
+    detailDialog.value = false;
+  } catch (error) {
+    console.error('Failed to void sale:', error);
+    alert('Failed to void sale');
   }
 };
 

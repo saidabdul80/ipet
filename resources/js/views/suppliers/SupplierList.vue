@@ -221,8 +221,10 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const loading = ref(false);
 const saving = ref(false);
 const dialog = ref(false);
@@ -318,14 +320,14 @@ const viewSupplier = (supplier) => {
 };
 
 const deleteSupplier = async (supplier) => {
-  if (confirm(`Are you sure you want to delete ${supplier.name}?`)) {
-    try {
-      await axios.delete(`/api/suppliers/${supplier.id}`);
-      loadSuppliers();
-    } catch (error) {
-      console.error('Failed to delete supplier:', error);
-      alert('Failed to delete supplier');
-    }
+  const confirmed = await confirm(`Are you sure you want to delete ${supplier.name}?`);
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/suppliers/${supplier.id}`);
+    loadSuppliers();
+  } catch (error) {
+    console.error('Failed to delete supplier:', error);
+    alert('Failed to delete supplier');
   }
 };
 
@@ -333,4 +335,3 @@ onMounted(() => {
   loadSuppliers();
 });
 </script>
-

@@ -31,7 +31,7 @@
         ></v-select>
       </v-col>
       <v-col cols="12" md="2">
-        <v-select
+        <StoreSelect
           v-model="filters.store_id"
           :items="stores"
           item-title="name"
@@ -41,7 +41,8 @@
           density="compact"
           clearable
           @update:model-value="loadOrders"
-        ></v-select>
+          @created="store => stores.push(store)"
+        />
       </v-col>
       <v-col cols="12" md="3" class="text-right">
         <v-btn color="primary" @click="openCreateDialog" v-if="authStore.hasPermission('create_orders')">
@@ -227,7 +228,7 @@
                 ></v-select>
               </v-col>
               <v-col cols="12" md="6">
-                <v-select
+                <StoreSelect
                   v-model="orderData.store_id"
                   :items="stores"
                   item-title="name"
@@ -235,15 +236,15 @@
                   label="Store *"
                   variant="outlined"
                   :rules="[v => !!v || 'Required']"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
+                <DatePickerField
                   v-model="orderData.delivery_date"
                   label="Delivery Date"
-                  type="date"
                   variant="outlined"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="6">
                 <v-text-field
@@ -278,8 +279,12 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
+import DatePickerField from '@/components/inputs/DatePickerField.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const loading = ref(false);
 const saving = ref(false);
 const detailDialog = ref(false);
@@ -382,30 +387,30 @@ const createOrder = async () => {
 };
 
 const confirmOrder = async (order) => {
-  if (confirm(`Confirm order ${order.order_number}?`)) {
-    try {
-      await axios.post(`/api/orders/${order.id}/confirm`);
-      loadOrders();
-      if (detailDialog.value) detailDialog.value = false;
-      alert('Order confirmed successfully');
-    } catch (error) {
-      console.error('Failed to confirm order:', error);
-      alert('Failed to confirm order');
-    }
+  const confirmed = await confirm(`Confirm order ${order.order_number}?`);
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/orders/${order.id}/confirm`);
+    loadOrders();
+    if (detailDialog.value) detailDialog.value = false;
+    alert('Order confirmed successfully');
+  } catch (error) {
+    console.error('Failed to confirm order:', error);
+    alert('Failed to confirm order');
   }
 };
 
 const cancelOrder = async (order) => {
-  if (confirm(`Cancel order ${order.order_number}?`)) {
-    try {
-      await axios.post(`/api/orders/${order.id}/cancel`);
-      loadOrders();
-      if (detailDialog.value) detailDialog.value = false;
-      alert('Order cancelled successfully');
-    } catch (error) {
-      console.error('Failed to cancel order:', error);
-      alert('Failed to cancel order');
-    }
+  const confirmed = await confirm(`Cancel order ${order.order_number}?`);
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/orders/${order.id}/cancel`);
+    loadOrders();
+    if (detailDialog.value) detailDialog.value = false;
+    alert('Order cancelled successfully');
+  } catch (error) {
+    console.error('Failed to cancel order:', error);
+    alert('Failed to cancel order');
   }
 };
 
@@ -425,4 +430,3 @@ onMounted(async () => {
   cursor: pointer;
 }
 </style>
-

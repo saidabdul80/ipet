@@ -193,7 +193,7 @@
               class="mt-4"
             ></v-select>
 
-            <v-select
+            <StoreSelect
               v-model="formData.store_id"
               :items="stores"
               item-title="name"
@@ -205,9 +205,10 @@
               hint="Primary store for POS and operations"
               persistent-hint
               class="mt-4"
-            ></v-select>
+              @created="store => stores.push(store)"
+            />
 
-            <v-select
+            <StoreSelect
               v-model="formData.store_ids"
               :items="stores"
               item-title="name"
@@ -221,7 +222,8 @@
               hint="User can access these stores"
               persistent-hint
               class="mt-4"
-            ></v-select>
+              @created="store => stores.push(store)"
+            />
 
             <v-switch
               v-model="formData.is_active"
@@ -245,9 +247,12 @@ import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import axios from 'axios';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
 const { success, handleError } = useToast();
+const { confirm } = useDialog();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -389,7 +394,8 @@ const saveUser = async () => {
 };
 
 const deleteUser = async (user) => {
-  if (!confirm(`Are you sure you want to delete ${user.name}?`)) return;
+  const confirmed = await confirm(`Are you sure you want to delete ${user.name}?`);
+  if (!confirmed) return;
 
   try {
     await axios.delete(`/api/users/${user.id}`);
@@ -404,5 +410,3 @@ onMounted(async () => {
   await Promise.all([loadUsers(), loadRoles(), loadBranches(), loadStores()]);
 });
 </script>
-
-

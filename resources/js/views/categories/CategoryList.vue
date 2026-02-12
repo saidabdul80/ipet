@@ -100,7 +100,7 @@
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
-                <v-select
+                <CategorySelect
                   v-model="formData.parent_id"
                   :items="parentCategories"
                   item-title="name"
@@ -108,7 +108,8 @@
                   label="Parent Category"
                   variant="outlined"
                   clearable
-                ></v-select>
+                  @created="category => categories.push(category)"
+                />
               </v-col>
               <v-col cols="12">
                 <v-textarea
@@ -143,9 +144,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import axios from 'axios';
+import CategorySelect from '@/components/selects/CategorySelect.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
 const { success, handleError } = useToast();
+const { confirm } = useDialog();
 const loading = ref(false);
 const saving = ref(false);
 const dialog = ref(false);
@@ -227,14 +231,14 @@ const saveCategory = async () => {
 };
 
 const deleteCategory = async (category) => {
-  if (confirm(`Are you sure you want to delete ${category.name}?`)) {
-    try {
-      await axios.delete(`/api/categories/${category.id}`);
-      success('Category deleted successfully');
-      loadCategories();
-    } catch (error) {
-      handleError(error, 'Failed to delete category');
-    }
+  const confirmed = await confirm(`Are you sure you want to delete ${category.name}?`);
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/categories/${category.id}`);
+    success('Category deleted successfully');
+    loadCategories();
+  } catch (error) {
+    handleError(error, 'Failed to delete category');
   }
 };
 
@@ -242,4 +246,3 @@ onMounted(() => {
   loadCategories();
 });
 </script>
-

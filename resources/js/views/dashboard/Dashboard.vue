@@ -55,7 +55,7 @@
         ></v-select>
       </v-col>
       <v-col cols="12" md="3" v-if="authStore.hasPermission('view_stores')">
-        <v-select
+        <StoreSelect
           v-model="selectedStore"
           :items="stores"
           item-title="name"
@@ -67,7 +67,8 @@
           clearable
           @update:model-value="loadDashboardData"
           hide-details
-        ></v-select>
+          @created="store => stores.push(store)"
+        />
       </v-col>
       <v-col cols="12" md="3" class="d-flex align-center">
         <v-btn
@@ -231,6 +232,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
 
 const authStore = useAuthStore();
 
@@ -282,6 +284,12 @@ const loadDashboardData = async () => {
   }
 };
 
+const normalizeList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
 onMounted(async () => {
   // Start time update
   updateTime();
@@ -290,11 +298,11 @@ onMounted(async () => {
   // Load branches and stores if user has permission
   if (authStore.hasPermission('view_branches')) {
     const branchesRes = await axios.get('/api/branches');
-    branches.value = branchesRes.data;
+    branches.value = normalizeList(branchesRes?.data);
   }
   if (authStore.hasPermission('view_stores')) {
     const storesRes = await axios.get('/api/stores');
-    stores.value = storesRes.data;
+    stores.value = normalizeList(storesRes?.data);
   }
 
   loadDashboardData();
@@ -418,4 +426,3 @@ onUnmounted(() => {
 .v-col:nth-child(3) { animation-delay: 0.3s; }
 .v-col:nth-child(4) { animation-delay: 0.4s; }
 </style>
-

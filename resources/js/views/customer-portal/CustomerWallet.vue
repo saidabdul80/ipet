@@ -153,8 +153,10 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert } = useDialog();
 const loading = ref(false);
 const funding = ref(false);
 const fundDialog = ref(false);
@@ -293,4 +295,3 @@ const verifyPayment = async (reference) => {
   }
 };
 </script>
-

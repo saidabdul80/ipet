@@ -54,7 +54,7 @@
         ></v-select>
       </v-col>
       <v-col cols="12" md="4">
-        <v-select
+        <CategorySelect
           v-model="selectedCategory"
           :items="categories"
           item-title="name"
@@ -63,7 +63,8 @@
           variant="outlined"
           clearable
           @update:modelValue="loadAnalytics"
-        ></v-select>
+          @created="category => categories.push(category)"
+        />
       </v-col>
       <v-col cols="12" md="4">
         <v-text-field
@@ -287,6 +288,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { Chart, registerables } from 'chart.js';
+import CategorySelect from '@/components/selects/CategorySelect.vue';
 
 Chart.register(...registerables);
 
@@ -505,4 +507,3 @@ onMounted(() => {
   margin: 20px 0;
 }
 </style>
-

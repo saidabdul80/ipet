@@ -20,7 +20,7 @@
         ></v-text-field>
       </v-col>
       <v-col cols="12" md="3">
-        <v-select
+        <CategorySelect
           v-model="filterCategory"
           :items="categories"
           item-title="name"
@@ -30,7 +30,8 @@
           density="compact"
           clearable
           @update:model-value="loadProducts"
-        ></v-select>
+          @created="category => categories.push(category)"
+        />
       </v-col>
       <v-col cols="12" md="2">
         <v-select
@@ -149,7 +150,7 @@
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="6">
-                <v-select
+                <CategorySelect
                   v-model="formData.category_id"
                   :items="categories"
                   item-title="name"
@@ -157,7 +158,8 @@
                   label="Category *"
                   variant="outlined"
                   :rules="[v => !!v || 'Category is required']"
-                ></v-select>
+                  @created="category => categories.push(category)"
+                />
               </v-col>
               <v-col cols="12" md="6">
                 <v-select
@@ -440,9 +442,12 @@ import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import axios from 'axios';
+import CategorySelect from '@/components/selects/CategorySelect.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
 const { success, handleError } = useToast();
+const { confirm } = useDialog();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -565,14 +570,14 @@ const saveProduct = async () => {
 };
 
 const deleteProduct = async (product) => {
-  if (confirm(`Are you sure you want to delete ${product.name}?`)) {
-    try {
-      await axios.delete(`/api/products/${product.id}`);
-      success('Product deleted successfully');
-      loadProducts();
-    } catch (error) {
-      handleError(error, 'Failed to delete product');
-    }
+  const confirmed = await confirm(`Are you sure you want to delete ${product.name}?`);
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/products/${product.id}`);
+    success('Product deleted successfully');
+    loadProducts();
+  } catch (error) {
+    handleError(error, 'Failed to delete product');
   }
 };
 
@@ -675,14 +680,14 @@ const saveUnit = async () => {
 };
 
 const deleteUnit = async (unit) => {
-  if (confirm(`Delete unit ${unit.unit?.name || unit.name}?`)) {
-    try {
-      await axios.delete(`/api/products/${selectedProduct.value.id}/units/${unit.id}`);
-      success('Unit deleted successfully');
-      await loadProductUnits();
-    } catch (error) {
-      handleError(error);
-    }
+  const confirmed = await confirm(`Delete unit ${unit.unit?.name || unit.name}?`);
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/products/${selectedProduct.value.id}/units/${unit.id}`);
+    success('Unit deleted successfully');
+    await loadProductUnits();
+  } catch (error) {
+    handleError(error);
   }
 };
 
@@ -698,4 +703,3 @@ onMounted(async () => {
   loadProducts();
 });
 </script>
-

@@ -20,7 +20,7 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="4">
-                <v-select
+                <StoreSelect
                   v-model="filters.store_id"
                   :items="stores"
                   item-title="name"
@@ -29,10 +29,11 @@
                   variant="outlined"
                   density="compact"
                   @update:model-value="loadStockLevels"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="4">
-                <v-select
+                <CategorySelect
                   v-model="filters.category_id"
                   :items="categories"
                   item-title="name"
@@ -42,7 +43,8 @@
                   density="compact"
                   clearable
                   @update:model-value="loadStockLevels"
-                ></v-select>
+                  @created="category => categories.push(category)"
+                />
               </v-col>
               <v-col cols="12" md="4">
                 <v-text-field
@@ -84,7 +86,7 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="3">
-                <v-select
+                <StoreSelect
                   v-model="ledgerFilters.store_id"
                   :items="stores"
                   item-title="name"
@@ -93,10 +95,11 @@
                   variant="outlined"
                   density="compact"
                   @update:model-value="loadStockLedger"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-select
+                <ProductSelect
                   v-model="ledgerFilters.product_id"
                   :items="products"
                   item-title="name"
@@ -106,27 +109,26 @@
                   density="compact"
                   clearable
                   @update:model-value="loadStockLedger"
-                ></v-select>
+                  @created="product => products.push(product)"
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-text-field
+                <DatePickerField
                   v-model="ledgerFilters.date_from"
                   label="From Date"
-                  type="date"
                   variant="outlined"
                   density="compact"
                   @change="loadStockLedger"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="12" md="3">
-                <v-text-field
+                <DatePickerField
                   v-model="ledgerFilters.date_to"
                   label="To Date"
-                  type="date"
                   variant="outlined"
                   density="compact"
                   @change="loadStockLedger"
-                ></v-text-field>
+                />
               </v-col>
             </v-row>
 
@@ -169,7 +171,7 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="6">
-                <v-select
+                <StoreSelect
                   v-model="lowStockFilter.store_id"
                   :items="stores"
                   item-title="name"
@@ -179,7 +181,8 @@
                   density="compact"
                   clearable
                   @update:model-value="loadLowStock"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
             </v-row>
 
@@ -204,7 +207,7 @@
           <v-card-text>
             <v-row class="mb-4">
               <v-col cols="12" md="3">
-                <v-select
+                <StoreSelect
                   v-model="transferFilters.store_id"
                   :items="stores"
                   item-title="name"
@@ -214,7 +217,8 @@
                   density="compact"
                   clearable
                   @update:model-value="loadTransfers"
-                ></v-select>
+                  @created="store => stores.push(store)"
+                />
               </v-col>
               <v-col cols="12" md="3">
                 <v-select
@@ -303,7 +307,7 @@
         <v-card-title>Create Stock Transfer</v-card-title>
         <v-card-text>
           <v-form ref="transferForm">
-            <v-select
+            <StoreSelect
               v-model="transferData.from_store_id"
               :items="stores"
               item-title="name"
@@ -311,8 +315,9 @@
               label="From Store *"
               variant="outlined"
               :rules="[v => !!v || 'Required']"
-            ></v-select>
-            <v-select
+              @created="store => stores.push(store)"
+            />
+            <StoreSelect
               v-model="transferData.to_store_id"
               :items="stores"
               item-title="name"
@@ -320,8 +325,9 @@
               label="To Store *"
               variant="outlined"
               :rules="[v => !!v || 'Required', v => v !== transferData.from_store_id || 'Must be different']"
-            ></v-select>
-            <v-select
+              @created="store => stores.push(store)"
+            />
+            <ProductSelect
               v-model="transferData.product_id"
               :items="products"
               item-title="name"
@@ -329,7 +335,8 @@
               label="Product *"
               variant="outlined"
               :rules="[v => !!v || 'Required']"
-            ></v-select>
+              @created="product => products.push(product)"
+            />
             <v-text-field
               v-model.number="transferData.quantity"
               label="Quantity *"
@@ -434,8 +441,14 @@
 import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import StoreSelect from '@/components/selects/StoreSelect.vue';
+import CategorySelect from '@/components/selects/CategorySelect.vue';
+import ProductSelect from '@/components/selects/ProductSelect.vue';
+import DatePickerField from '@/components/inputs/DatePickerField.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const activeTab = ref('stock-levels');
 const loading = ref(false);
 const loadingLedger = ref(false);
@@ -686,8 +699,8 @@ const createTransfer = async () => {
 };
 
 const approveTransfer = async (transfer) => {
-  if (!confirm(`Approve stock transfer ${transfer.transfer_number}?`)) return;
-
+  const confirmed = await confirm(`Approve stock transfer ${transfer.transfer_number}?`);
+  if (!confirmed) return;
   try {
     const response = await axios.post(`/api/inventory/stock-transfers/${transfer.id}/approve`, {});
     alert(response.data.message);
@@ -699,8 +712,8 @@ const approveTransfer = async (transfer) => {
 };
 
 const receiveTransfer = async (transfer) => {
-  if (!confirm(`Mark stock transfer ${transfer.transfer_number} as received?`)) return;
-
+  const confirmed = await confirm(`Mark stock transfer ${transfer.transfer_number} as received?`);
+  if (!confirmed) return;
   try {
     const response = await axios.post(`/api/inventory/stock-transfers/${transfer.id}/receive`, {
       received_date: new Date().toISOString().split('T')[0],
@@ -734,9 +747,8 @@ const viewTransferDetails = async (transfer) => {
 
 const approveFromDetails = async () => {
   if (!selectedTransfer.value) return;
-
-  if (!confirm(`Approve stock transfer ${selectedTransfer.value.transfer_number}?`)) return;
-
+  const confirmed = await confirm(`Approve stock transfer ${selectedTransfer.value.transfer_number}?`);
+  if (!confirmed) return;
   try {
     const response = await axios.post(`/api/inventory/stock-transfers/${selectedTransfer.value.id}/approve`, {});
     alert(response.data.message);
@@ -750,9 +762,8 @@ const approveFromDetails = async () => {
 
 const receiveFromDetails = async () => {
   if (!selectedTransfer.value) return;
-
-  if (!confirm(`Mark stock transfer ${selectedTransfer.value.transfer_number} as received?`)) return;
-
+  const confirmed = await confirm(`Mark stock transfer ${selectedTransfer.value.transfer_number} as received?`);
+  if (!confirmed) return;
   try {
     const response = await axios.post(`/api/inventory/stock-transfers/${selectedTransfer.value.id}/receive`, {
       received_date: new Date().toISOString().split('T')[0],
@@ -788,4 +799,3 @@ onMounted(async () => {
   }
 });
 </script>
-

@@ -371,12 +371,14 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const tab = ref('general');
 const saving = ref(false);
 const resetting = ref(false);
 const resetDialog = ref(false);
 const settings = ref({});
+const { alert, confirm } = useDialog();
 
 const form = reactive({
   app_name: '',
@@ -555,7 +557,8 @@ const saveSettings = async () => {
 };
 
 const deleteImage = async (type) => {
-  if (!confirm('Are you sure you want to delete this image?')) return;
+  const confirmed = await confirm('Are you sure you want to delete this image?');
+  if (!confirmed) return;
 
   try {
     await axios.delete(`/api/app-settings/images/${type}`);
@@ -632,5 +635,3 @@ onMounted(() => {
   border: 2px solid #e0e0e0;
 }
 </style>
-
-

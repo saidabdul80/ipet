@@ -248,8 +248,10 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
+import { useDialog } from '@/composables/useDialog';
 
 const authStore = useAuthStore();
+const { alert, confirm } = useDialog();
 const activeTab = ref('transactions');
 const loading = ref(false);
 const funding = ref(false);
@@ -384,28 +386,28 @@ const debitWallet = async () => {
 };
 
 const approveTransaction = async (transaction) => {
-  if (confirm('Approve this transaction?')) {
-    try {
-      await axios.post(`/api/wallet/transactions/${transaction.id}/approve`);
-      loadTransactions();
-      alert('Transaction approved');
-    } catch (error) {
-      console.error('Failed to approve transaction:', error);
-      alert('Failed to approve transaction');
-    }
+  const confirmed = await confirm('Approve this transaction?');
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/wallet/transactions/${transaction.id}/approve`);
+    loadTransactions();
+    alert('Transaction approved');
+  } catch (error) {
+    console.error('Failed to approve transaction:', error);
+    alert('Failed to approve transaction');
   }
 };
 
 const reverseTransaction = async (transaction) => {
-  if (confirm('Reverse this transaction? This action cannot be undone.')) {
-    try {
-      await axios.post(`/api/wallet/transactions/${transaction.id}/reverse`);
-      loadTransactions();
-      alert('Transaction reversed');
-    } catch (error) {
-      console.error('Failed to reverse transaction:', error);
-      alert('Failed to reverse transaction');
-    }
+  const confirmed = await confirm('Reverse this transaction? This action cannot be undone.');
+  if (!confirmed) return;
+  try {
+    await axios.post(`/api/wallet/transactions/${transaction.id}/reverse`);
+    loadTransactions();
+    alert('Transaction reversed');
+  } catch (error) {
+    console.error('Failed to reverse transaction:', error);
+    alert('Failed to reverse transaction');
   }
 };
 
@@ -415,4 +417,3 @@ onMounted(async () => {
   loadTransactions();
 });
 </script>
-

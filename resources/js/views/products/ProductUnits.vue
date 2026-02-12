@@ -13,7 +13,7 @@
         <!-- Product Selection -->
         <v-row class="mb-4">
           <v-col cols="12" md="6">
-            <v-autocomplete
+            <ProductSelect
               v-model="selectedProductId"
               :items="products"
               item-title="name"
@@ -21,7 +21,9 @@
               label="Select Product"
               variant="outlined"
               density="compact"
+              control="autocomplete"
               @update:model-value="loadProductUnits"
+              @created="product => products.push(product)"
             >
               <template v-slot:item="{ props, item }">
                 <v-list-item v-bind="props">
@@ -33,7 +35,7 @@
                   </template>
                 </v-list-item>
               </template>
-            </v-autocomplete>
+            </ProductSelect>
           </v-col>
         </v-row>
 
@@ -199,6 +201,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import ProductSelect from '@/components/selects/ProductSelect.vue';
+import { useDialog } from '@/composables/useDialog';
 
 const products = ref([]);
 const selectedProductId = ref(null);
@@ -218,6 +222,8 @@ const formData = ref({
   is_sale_unit: true,
   is_default: false,
 });
+
+const { alert, confirm } = useDialog();
 
 const headers = [
   { title: 'Unit', key: 'unit' },
@@ -316,15 +322,15 @@ const saveUnit = async () => {
 };
 
 const deleteUnit = async (unit) => {
-  if (confirm(`Delete unit ${unit.unit.name}?`)) {
-    try {
-      await axios.delete(`/api/products/${selectedProductId.value}/units/${unit.id}`);
-      alert('Product unit deleted successfully');
-      loadProductUnits();
-    } catch (error) {
-      console.error('Failed to delete product unit:', error);
-      alert(error.response?.data?.message || 'Failed to delete product unit');
-    }
+  const confirmed = await confirm(`Delete unit ${unit.unit.name}?`);
+  if (!confirmed) return;
+  try {
+    await axios.delete(`/api/products/${selectedProductId.value}/units/${unit.id}`);
+    alert('Product unit deleted successfully');
+    loadProductUnits();
+  } catch (error) {
+    console.error('Failed to delete product unit:', error);
+    alert(error.response?.data?.message || 'Failed to delete product unit');
   }
 };
 
